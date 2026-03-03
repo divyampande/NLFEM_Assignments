@@ -3,66 +3,78 @@ import matplotlib.pyplot as plt
 
 
 def correct_and_plot_nodes(
-    csv_filename, output_filename="NLFEM_Assignments\Assignment_1\corrected_nodes.csv"
+    csv_filename,
+    nx_elem=4,
+    ny_elem=4,
+    Lx=1.0,
+    Ly=1.0,
+    output_filename="NLFEM_Assignments\Assignment_1\corrected_deformed_coords.csv",
 ):
-    # 1. Load original manual data
+
+    nx_nodes = nx_elem + 1
+    ny_nodes = ny_elem + 1
+    total_nodes = nx_nodes * ny_nodes
+    # Load manual data
     try:
         original = np.loadtxt(csv_filename, delimiter=",")
     except Exception as e:
         print(f"Error loading CSV: {e}")
         return
 
-    if len(original) != 25:
-        print("Error: Expected exactly 25 nodes in the CSV.")
+    if len(original) != total_nodes:
+        print(
+            f"Error: Expected {total_nodes} nodes for a {nx_elem}x{ny_elem} mesh, but found {len(original)}."
+        )
         return
 
     corrected = original.copy()
+    center_y = Ly / 2.0
 
-    # 2. Enforce Centerline strictly at Y = 0.5
-    # The middle row consists of indices 10, 11, 12, 13, 14
-    center_idx = [10, 11, 12, 13, 14]
-    corrected[center_idx, 1] = 0.5
+    # Enforce Centerline strictly at Y = 0.5
+    if ny_elem % 2 == 0:
+        mid_row = ny_nodes // 2
+        for col in range(nx_nodes):
+            center_node_idx = mid_row * nx_nodes + col
+            corrected[center_node_idx, 1] = center_y
 
-    # 3. Enforce Horizontal Symmetry (about Y = 0.5)
-    # Pair Row 0 (bottom) with Row 4 (top)
-    # Pair Row 1 (mid-bottom) with Row 3 (mid-top)
-    row_pairs = [(0, 4), (1, 3)]
+    # Enforce Horizontal Symmetry (about Y = 0.5)
+    for row in range(ny_nodes // 2):
+        top_row = ny_nodes - 1 - row
 
-    for bottom_row, top_row in row_pairs:
-        for col in range(5):
-            idx_bottom = bottom_row * 5 + col
-            idx_top = top_row * 5 + col
+        for col in range(nx_nodes):
+            idx_bottom = row * nx_nodes + col
+            idx_top = top_row * nx_nodes + col
 
             # Average the X coordinates
             avg_x = (original[idx_bottom, 0] + original[idx_top, 0]) / 2.0
             corrected[idx_bottom, 0] = avg_x
             corrected[idx_top, 0] = avg_x
 
-            # Average the absolute distance from Y=0.5
-            dist_bottom = 0.5 - original[idx_bottom, 1]
-            dist_top = original[idx_top, 1] - 0.5
+            # Average the absolute distance from the physical center_y
+            dist_bottom = center_y - original[idx_bottom, 1]
+            dist_top = original[idx_top, 1] - center_y
             avg_dist = (dist_bottom + dist_top) / 2.0
 
             # Apply new symmetric Y coordinates
-            corrected[idx_bottom, 1] = 0.5 - avg_dist
-            corrected[idx_top, 1] = 0.5 + avg_dist
+            corrected[idx_bottom, 1] = center_y - avg_dist
+            corrected[idx_top, 1] = center_y + avg_dist
 
-    # 4. Enforce Boundary Conditions (X = 0 and X = 1)
-    # Done last to ensure symmetry averaging didn't pull the boundaries off the wall
-    left_edge_idx = [0, 5, 10, 15, 20]
-    right_edge_idx = [4, 9, 14, 19, 24]
+    # Enforce Boundary Conditions (X = 0 and X = 1)
+    for row in range(ny_nodes):
+        left_edge_idx = row * nx_nodes + 0
+        right_edge_idx = row * nx_nodes + nx_elem
 
-    corrected[left_edge_idx, 0] = 0.0
-    corrected[right_edge_idx, 0] = 1.0
+        corrected[left_edge_idx, 0] = 0.0
+        corrected[right_edge_idx, 0] = Lx
 
-    # 5. Save the corrected data
+    # Save the corrected data
     np.savetxt(output_filename, corrected, delimiter=",", fmt="%.6f")
     print(f"Corrected coordinates saved to {output_filename}")
 
-    # 6. Plotting Original vs. Corrected
+    # Plotting Original vs. Corrected
     plt.figure(figsize=(10, 8))
 
-    # Plot original nodes (Faint blue)
+    # Plot original nodes
     plt.scatter(
         original[:, 0],
         original[:, 1],
@@ -72,7 +84,7 @@ def correct_and_plot_nodes(
         label="Original (Manual)",
     )
 
-    # Plot corrected nodes (Solid red)
+    # Plot corrected nodes
     plt.scatter(
         corrected[:, 0],
         corrected[:, 1],
@@ -82,16 +94,18 @@ def correct_and_plot_nodes(
         label="Corrected (Symmetric/Constrained)",
     )
 
-    # Draw grid lines for the corrected mesh
-    for i in range(5):
+    # Draw dynamic grid lines
+    for i in range(ny_nodes):
         # Rows
-        start = i * 5
-        end = start + 5
+        start = i * nx_nodes
+        end = start + nx_nodes
         plt.plot(corrected[start:end, 0], corrected[start:end, 1], "r--", alpha=0.6)
-        # Columns
-        plt.plot(corrected[i::5, 0], corrected[i::5, 1], "r--", alpha=0.6)
 
-    plt.title("Deformed Shape: Manual Extraction vs. Corrected Data")
+    for j in range(nx_nodes):
+        # Columns
+        plt.plot(corrected[j::nx_nodes, 0], corrected[j::nx_nodes, 1], "r--", alpha=0.6)
+
+    plt.title(f"Deformed Shape Correction ({nx_elem}x{ny_elem} Mesh)")
     plt.xlabel("X (m)")
     plt.ylabel("Y (m)")
     plt.grid(True, linestyle=":", alpha=0.7)
@@ -100,5 +114,4 @@ def correct_and_plot_nodes(
     plt.show()
 
 
-# Run the function (replace with your actual WebPlotDigitizer filename)
 correct_and_plot_nodes("NLFEM_Assignments\Assignment_1\Deformed_Coords.csv")
