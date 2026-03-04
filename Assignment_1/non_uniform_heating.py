@@ -162,17 +162,22 @@ elif COMPUTE_MODE == "nodal":
     eps_results = eps_sum / counts_reshaped
 
 # Save Tensors as .npy files
+# Create a results subdirectory
+results_dir = os.path.join(current_dir, "results")
+os.makedirs(results_dir, exist_ok=True)
+
+# Save Tensors as .npy files inside the results folder
 np.save(
-    os.path.join(current_dir, f"Deformation_Gradient_F_{COMPUTE_MODE}.npy"), F_results
+    os.path.join(results_dir, f"Deformation_Gradient_F_{COMPUTE_MODE}.npy"), F_results
 )
 np.save(
-    os.path.join(current_dir, f"Green_Lagrange_Strain_E_{COMPUTE_MODE}.npy"), E_results
+    os.path.join(results_dir, f"Green_Lagrange_Strain_E_{COMPUTE_MODE}.npy"), E_results
 )
-np.save(os.path.join(current_dir, f"Eulerian_Strain_e_{COMPUTE_MODE}.npy"), e_results)
+np.save(os.path.join(results_dir, f"Eulerian_Strain_e_{COMPUTE_MODE}.npy"), e_results)
 np.save(
-    os.path.join(current_dir, f"Engineering_Strain_eps_{COMPUTE_MODE}.npy"), eps_results
+    os.path.join(results_dir, f"Engineering_Strain_eps_{COMPUTE_MODE}.npy"), eps_results
 )
-print(f"Successfully saved tensor data to {current_dir}")
+print(f"Successfully saved tensor data to {results_dir}")
 
 
 # Plotting
@@ -212,14 +217,14 @@ ax.set_yticks(np.arange(-0.2, 1.4, 0.2))
 ax.legend(loc="upper left", framealpha=1, edgecolor="black")
 
 plt.tight_layout()
-deform_plot_path = os.path.join(current_dir, "Deformation_Plot.png")
+deform_plot_path = os.path.join(results_dir, "Deformation_Plot.png")
 plt.savefig(deform_plot_path, dpi=300)
 plt.show()
 
 
 # Plotting Strain Components
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-titles = ["E_11", "E_22", "E_12"]
+titles = ["$E_{11}$", "$E_{22}$", "$E_{12}$"]
 verts = [X_nodes[element] for element in conn]
 
 if COMPUTE_MODE == "element":
@@ -257,6 +262,6 @@ for ax, title in zip(axes, titles):
     ax.set_ylabel("Y (m)", fontsize=12)
 
 plt.tight_layout()
-strain_plot_path = os.path.join(current_dir, f"Strain_Plot_{COMPUTE_MODE}.png")
+strain_plot_path = os.path.join(results_dir, f"Strain_Plot_{COMPUTE_MODE}.png")
 plt.savefig(strain_plot_path, dpi=300)
 plt.show()
