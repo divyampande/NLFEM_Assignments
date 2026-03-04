@@ -3,29 +3,30 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
 import os
 
-# Parameters
-l = 1.0  # Length of the plate
-w = 1.0  # Width of the plate
-nx_elems = 4  # Number of elements in x direction
-ny_elems = 4  # Number of elements in y direction
+# Choose "element" for cell-centered constant values
+# Choose "nodal" for smoothed nodal averaged values
+COMPUTE_MODE = "nodal"
+
+# Setup the geometry and mesh
+l = 1.0
+w = 1.0
+nx_elems = 4
+ny_elems = 4
 nx_nodes = nx_elems + 1
 ny_nodes = ny_elems + 1
 
-# Generate non-uniform node coordinates
-x_coords = np.linspace(0, l, nx_elems + 1)
-y_coords = np.linspace(0, w, ny_elems + 1)
+# Generate undeformed node coordinates
+x_coords = np.linspace(0, l, nx_nodes)
+y_coords = np.linspace(0, w, ny_nodes)
 X, Y = np.meshgrid(x_coords, y_coords)
 X_nodes = np.column_stack((X.flatten(), Y.flatten()))
 
-# Generate arrays of element indices in the x and y directions
+# Connectivity matrix for 4-node quadrilaterals
 i_idx, j_idx = np.meshgrid(np.arange(nx_elems), np.arange(ny_elems))
-
-# Connectivity matrix
 n1 = j_idx * (nx_nodes) + i_idx
 n2 = n1 + 1
 n3 = n2 + nx_nodes
 n4 = n1 + nx_nodes
-
 conn = np.column_stack((n1.ravel(), n2.ravel(), n3.ravel(), n4.ravel()))
 
 
@@ -40,7 +41,6 @@ file_path = os.path.join(current_dir, "corrected_deformed_coords.csv")
 print(f"Looking for deformed coordinates at: {file_path}")
 
 try:
-    # Lowercase x for current configuration
     x_nodes = np.loadtxt(file_path, delimiter=",")
 except FileNotFoundError:
     print("\nERROR: 'corrected_nodes.csv' not found!")
@@ -56,9 +56,6 @@ if len(x_nodes) != len(X_nodes):
         )
     )
     exit()
-
-
-fig, ax = plt.subplots(figsize=(8, 5))
 
 
 def compute_kinematics(X_elem, Y_elem, x_elem, y_elem, xi=0.0, eta=0.0):
@@ -90,52 +87,124 @@ def compute_kinematics(X_elem, Y_elem, x_elem, y_elem, xi=0.0, eta=0.0):
         ]
     )
 
-    E = 0.5 * (np.dot(F.T, F) - np.eye(2))
+    # Green-Lagrange Strain Tensor (E)
+    I = np.eye(2)
+    E = 0.5 * (np.dot(F.T, F) - I)
 
-    return F, E
+    # Eulerian / Almansi Strain Tensor (e)
+    F_inv = np.linalg.inv(F)
+    e = 0.5 * (I - np.dot(F_inv.T, F_inv))
+
+    # Engineering Strain Tensor (eps)
+    eps = 0.5 * (F + F.T) - I
+
+    return F, E, e, eps
 
 
-F_tensors = []
-E_tensors = []
+# Computation
+if COMPUTE_MODE == "element":
+    F_results = np.zeros((len(conn), 2, 2))
+    E_results = np.zeros((len(conn), 2, 2))
+    e_results = np.zeros((len(conn), 2, 2))
+    eps_results = np.zeros((len(conn), 2, 2))
 
+    for i, element in enumerate(conn):
+        X_elem_math, Y_elem_math = X_nodes[element, 0], X_nodes[element, 1]
+        x_elem_math, y_elem_math = x_nodes[element, 0], x_nodes[element, 1]
+
+        # Evaluate at element center
+        F, E, e, eps = compute_kinematics(
+            X_elem_math, Y_elem_math, x_elem_math, y_elem_math, xi=0.0, eta=0.0
+        )
+        F_results[i] = F
+        E_results[i] = E
+        e_results[i] = e
+        eps_results[i] = eps
+
+elif COMPUTE_MODE == "nodal":
+    # Initialize arrays for nodal averaging
+    num_nodes = len(X_nodes)
+    F_sum = np.zeros((num_nodes, 2, 2))
+    E_sum = np.zeros((num_nodes, 2, 2))
+    e_sum = np.zeros((num_nodes, 2, 2))
+    eps_sum = np.zeros((num_nodes, 2, 2))
+    node_counts = np.zeros(num_nodes)
+
+    node_nat_coords = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+
+    for i, element in enumerate(conn):
+        X_elem_math, Y_elem_math = X_nodes[element, 0], X_nodes[element, 1]
+        x_elem_math, y_elem_math = x_nodes[element, 0], x_nodes[element, 1]
+
+        # Evaluate at all 4 nodes and add to global sum
+        for j, (xi_val, eta_val) in enumerate(node_nat_coords):
+            F, E, e, eps = compute_kinematics(
+                X_elem_math,
+                Y_elem_math,
+                x_elem_math,
+                y_elem_math,
+                xi=xi_val,
+                eta=eta_val,
+            )
+            global_node_idx = element[j]
+
+            F_sum[global_node_idx] += F
+            E_sum[global_node_idx] += E
+            e_sum[global_node_idx] += e
+            eps_sum[global_node_idx] += eps
+            node_counts[global_node_idx] += 1
+
+    # Average the tensors at the nodes
+    counts_reshaped = node_counts[:, None, None]
+    F_results = F_sum / counts_reshaped
+    E_results = E_sum / counts_reshaped
+    e_results = e_sum / counts_reshaped
+    eps_results = eps_sum / counts_reshaped
+
+# Save Tensors as .npy files
+np.save(
+    os.path.join(current_dir, f"Deformation_Gradient_F_{COMPUTE_MODE}.npy"), F_results
+)
+np.save(
+    os.path.join(current_dir, f"Green_Lagrange_Strain_E_{COMPUTE_MODE}.npy"), E_results
+)
+np.save(os.path.join(current_dir, f"Eulerian_Strain_e_{COMPUTE_MODE}.npy"), e_results)
+np.save(
+    os.path.join(current_dir, f"Engineering_Strain_eps_{COMPUTE_MODE}.npy"), eps_results
+)
+print(f"Successfully saved tensor data to {current_dir}")
+
+
+# Plotting
+fig, ax = plt.subplots(figsize=(8, 5))
 for i, element in enumerate(conn):
-    # --- 1. THE MATH (Strictly 4 nodes) ---
-    X_elem_math = X_nodes[element, 0]
-    Y_elem_math = X_nodes[element, 1]
-
-    x_elem_math = x_nodes[element, 0]
-    y_elem_math = x_nodes[element, 1]
-
-    # Compute kinematics using the 4 nodes
-    F, E = compute_kinematics(X_elem_math, Y_elem_math, x_elem_math, y_elem_math)
-    F_tensors.append(F)
-    E_tensors.append(E)
-
-    # --- 2. THE PLOTTING (5 nodes to close the visual loop) ---
+    # 5 nodes to close the visual loop
     elem_idx = np.append(element, element[0])
 
-    X_elem_plot = X_nodes[elem_idx, 0]
-    Y_elem_plot = X_nodes[elem_idx, 1]
-
-    x_elem_def_plot = x_nodes[elem_idx, 0]
-    y_elem_def_plot = x_nodes[elem_idx, 1]
-
-    # Add legends only on the first loop iteration
     if i == 0:
-        ax.plot(X_elem_plot, Y_elem_plot, "b-", linewidth=1.5, label="undeformed")
         ax.plot(
-            x_elem_def_plot, y_elem_def_plot, "r--", linewidth=1.5, label="deformed"
+            X_nodes[elem_idx, 0],
+            X_nodes[elem_idx, 1],
+            "b-",
+            linewidth=1.5,
+            label="undeformed",
+        )
+        ax.plot(
+            x_nodes[elem_idx, 0],
+            x_nodes[elem_idx, 1],
+            "r--",
+            linewidth=1.5,
+            label="deformed",
         )
     else:
-        ax.plot(X_elem_plot, Y_elem_plot, "b-", linewidth=1.5)
-        ax.plot(x_elem_def_plot, y_elem_def_plot, "r--", linewidth=1.5)
-ax.plot(X_nodes[:, 0], X_nodes[:, 1], "bo", markerfacecolor="none", markersize=6)
+        ax.plot(X_nodes[elem_idx, 0], X_nodes[elem_idx, 1], "b-", linewidth=1.5)
+        ax.plot(x_nodes[elem_idx, 0], x_nodes[elem_idx, 1], "r--", linewidth=1.5)
 
+ax.plot(X_nodes[:, 0], X_nodes[:, 1], "bo", markerfacecolor="none", markersize=6)
 ax.plot(x_nodes[:, 0], x_nodes[:, 1], "ro", markerfacecolor="none", markersize=6)
 
-# Formatting to match Figure 1 of the assignment
-ax.set_xlabel("$X$ (m)", fontsize=14)
-ax.set_ylabel("$Y$ (m)", fontsize=14)
+ax.set_xlabel("X (m)", fontsize=14)
+ax.set_ylabel("Y (m)", fontsize=14)
 ax.set_xlim(0, 1.05)
 ax.set_ylim(-0.25, 1.25)
 ax.set_xticks(np.arange(0, 1.2, 0.2))
@@ -143,33 +212,51 @@ ax.set_yticks(np.arange(-0.2, 1.4, 0.2))
 ax.legend(loc="upper left", framealpha=1, edgecolor="black")
 
 plt.tight_layout()
+deform_plot_path = os.path.join(current_dir, "Deformation_Plot.png")
+plt.savefig(deform_plot_path, dpi=300)
 plt.show()
 
-# Extract strain components from the tensors
-E11 = [E[0, 0] for E in E_tensors]
-E22 = [E[1, 1] for E in E_tensors]
-E12 = [E[0, 1] for E in E_tensors]
 
-# Extract element vertices (using undeformed reference configuration)
+# Plotting Strain Components
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+titles = ["E_11", "E_22", "E_12"]
 verts = [X_nodes[element] for element in conn]
 
-fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-strains = [E11, E22, E12]
-titles = ["$E_{11}$", "$E_{22}$", "$E_{12}$"]
+if COMPUTE_MODE == "element":
+    # Extract components
+    E11 = E_results[:, 0, 0]
+    E22 = E_results[:, 1, 1]
+    E12 = E_results[:, 0, 1]
+    strains = [E11, E22, E12]
+    verts = [X_nodes[element] for element in conn]
 
-for ax, strain_data, title in zip(axes, strains, titles):
-    poly = PolyCollection(verts, cmap="jet", edgecolor="black", linewidth=0.5)
-    poly.set_array(np.array(strain_data))
+    for ax, strain_data, title in zip(axes, strains, titles):
+        poly = PolyCollection(verts, cmap="jet", edgecolor="black", linewidth=0.5)
+        poly.set_array(np.array(strain_data))
+        ax.add_collection(poly)
+        fig.colorbar(poly, ax=ax, fraction=0.046, pad=0.04)
 
-    ax.add_collection(poly)
-    fig.colorbar(poly, ax=ax, fraction=0.046, pad=0.04)
+elif COMPUTE_MODE == "nodal":
+    # Extract components and reshape to grid for contour plotting
+    E11 = E_results[:, 0, 0].reshape((ny_nodes, nx_nodes))
+    E22 = E_results[:, 1, 1].reshape((ny_nodes, nx_nodes))
+    E12 = E_results[:, 0, 1].reshape((ny_nodes, nx_nodes))
+    strains = [E11, E22, E12]
 
-    ax.set_title(title, fontsize=14)
+    for ax, strain_data, title in zip(axes, strains, titles):
+        contour = ax.contourf(X, Y, strain_data, levels=50, cmap="jet")
+        fig.colorbar(contour, ax=ax, fraction=0.046, pad=0.04)
+
+# Format the strain plots
+for ax, title in zip(axes, titles):
+    ax.set_title(f"Green Strain: {title} ({COMPUTE_MODE})", fontsize=14)
     ax.set_xlim(0, 1.0)
     ax.set_ylim(0, 1.0)
     ax.set_aspect("equal")
-    ax.set_xlabel("$X$ (m)", fontsize=12)
-    ax.set_ylabel("$Y$ (m)", fontsize=12)
+    ax.set_xlabel("X (m)", fontsize=12)
+    ax.set_ylabel("Y (m)", fontsize=12)
 
 plt.tight_layout()
+strain_plot_path = os.path.join(current_dir, f"Strain_Plot_{COMPUTE_MODE}.png")
+plt.savefig(strain_plot_path, dpi=300)
 plt.show()
