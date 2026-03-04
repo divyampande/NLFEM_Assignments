@@ -182,28 +182,34 @@ print(f"Successfully saved tensor data to {results_dir}")
 
 # Plotting
 fig, ax = plt.subplots(figsize=(8, 5))
-for i, element in enumerate(conn):
-    # 5 nodes to close the visual loop
-    elem_idx = np.append(element, element[0])
+for i in range(ny_nodes):
+    start = i * nx_nodes
+    end = start + nx_nodes
 
+    # Add legends only on the first row
     if i == 0:
         ax.plot(
-            X_nodes[elem_idx, 0],
-            X_nodes[elem_idx, 1],
+            X_nodes[start:end, 0],
+            X_nodes[start:end, 1],
             "b-",
             linewidth=1.5,
             label="undeformed",
         )
         ax.plot(
-            x_nodes[elem_idx, 0],
-            x_nodes[elem_idx, 1],
+            x_nodes[start:end, 0],
+            x_nodes[start:end, 1],
             "r--",
             linewidth=1.5,
             label="deformed",
         )
     else:
-        ax.plot(X_nodes[elem_idx, 0], X_nodes[elem_idx, 1], "b-", linewidth=1.5)
-        ax.plot(x_nodes[elem_idx, 0], x_nodes[elem_idx, 1], "r--", linewidth=1.5)
+        ax.plot(X_nodes[start:end, 0], X_nodes[start:end, 1], "b-", linewidth=1.5)
+        ax.plot(x_nodes[start:end, 0], x_nodes[start:end, 1], "r--", linewidth=1.5)
+
+# Plot vertical grid lines (columns)
+for j in range(nx_nodes):
+    ax.plot(X_nodes[j::nx_nodes, 0], X_nodes[j::nx_nodes, 1], "b-", linewidth=1.5)
+    ax.plot(x_nodes[j::nx_nodes, 0], x_nodes[j::nx_nodes, 1], "r--", linewidth=1.5)
 
 ax.plot(X_nodes[:, 0], X_nodes[:, 1], "bo", markerfacecolor="none", markersize=6)
 ax.plot(x_nodes[:, 0], x_nodes[:, 1], "ro", markerfacecolor="none", markersize=6)
