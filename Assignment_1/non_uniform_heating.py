@@ -2,10 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
 import os
+from scipy.interpolate import griddata
 
 # Choose "element" for cell-centered constant values
 # Choose "nodal" for smoothed nodal averaged values
-COMPUTE_MODE = "nodal"
+# Choose "gauss_surface" for plots suggested in the assignment
+COMPUTE_MODE = "gauss_surface"
 
 # Setup the geometry and mesh
 l = 1.0
@@ -161,6 +163,54 @@ elif COMPUTE_MODE == "nodal":
     e_results = e_sum / counts_reshaped
     eps_results = eps_sum / counts_reshaped
 
+elif COMPUTE_MODE == "gauss_surface":
+    # 2x2 Gauss integration points
+    gauss_val = 1.0 / np.sqrt(3.0)
+    gauss_points = [
+        (-gauss_val, -gauss_val),
+        (gauss_val, -gauss_val),
+        (gauss_val, gauss_val),
+        (-gauss_val, gauss_val),
+    ]
+
+    gp_coords = []
+    F_gp_list, E_gp_list, e_gp_list, eps_gp_list = [], [], [], []
+
+    for i, element in enumerate(conn):
+        X_elem_math, Y_elem_math = X_nodes[element, 0], X_nodes[element, 1]
+        x_elem_math, y_elem_math = x_nodes[element, 0], x_nodes[element, 1]
+
+        for xi_val, eta_val in gauss_points:
+            F, E, e, eps = compute_kinematics(
+                X_elem_math,
+                Y_elem_math,
+                x_elem_math,
+                y_elem_math,
+                xi=xi_val,
+                eta=eta_val,
+            )
+
+            # Compute physical coordinates of the Gauss Point in the current (deformed) space
+            N1 = 0.25 * (1 - xi_val) * (1 - eta_val)
+            N2 = 0.25 * (1 + xi_val) * (1 - eta_val)
+            N3 = 0.25 * (1 + xi_val) * (1 + eta_val)
+            N4 = 0.25 * (1 - xi_val) * (1 + eta_val)
+            N = np.array([N1, N2, N3, N4])
+
+            x_GP = np.dot(N, x_elem_math)
+            y_GP = np.dot(N, y_elem_math)
+
+            gp_coords.append((x_GP, y_GP))
+            F_gp_list.append(F)
+            E_gp_list.append(E)
+            e_gp_list.append(e)
+            eps_gp_list.append(eps)
+
+    gp_coords = np.array(gp_coords)
+    F_results = np.array(F_gp_list)
+    E_results = np.array(E_gp_list)
+    e_results = np.array(e_gp_list)
+    eps_results = np.array(eps_gp_list)
 # Save Tensors as .npy files
 # Create a results subdirectory
 results_dir = os.path.join(current_dir, "results")
@@ -256,6 +306,26 @@ elif COMPUTE_MODE == "nodal":
 
     for ax, strain_data, title in zip(axes, strains, titles):
         contour = ax.contourf(X, Y, strain_data, levels=50, cmap="jet")
+        fig.colorbar(contour, ax=ax, fraction=0.046, pad=0.04)
+
+elif COMPUTE_MODE == "gauss_surface":
+    E11 = E_results[:, 0, 0]
+    E22 = E_results[:, 1, 1]
+    E12 = E_results[:, 0, 1]
+    strains = [E11, E22, E12]
+
+    # Create a dense uniform meshgrid over the bounds of the deformed geometry
+    grid_x, grid_y = np.mgrid[
+        min(x_nodes[:, 0]) : max(x_nodes[:, 0]) : 200j,
+        min(x_nodes[:, 1]) : max(x_nodes[:, 1]) : 200j,
+    ]
+
+    for ax, strain_data, title in zip(axes, strains, titles):
+        # Interpolate scattered Gauss point strains onto the dense grid
+        grid_strain = griddata(gp_coords, strain_data, (grid_x, grid_y), method="cubic")
+
+        # Plot using contourf (equivalent to MATLAB's surf/contour)
+        contour = ax.contourf(grid_x, grid_y, grid_strain, levels=50, cmap="jet")
         fig.colorbar(contour, ax=ax, fraction=0.046, pad=0.04)
 
 # Format the strain plots
