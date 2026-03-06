@@ -1,15 +1,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
 def correct_and_plot_nodes(
-    csv_filename,
     nx_elem=4,
     ny_elem=4,
     Lx=1.0,
     Ly=1.0,
-    output_filename="NLFEM_Assignments\Assignment_1\corrected_deformed_coords.csv",
 ):
+
+    current_dir = (
+        os.path.dirname(os.path.abspath(__file__))
+        if "__file__" in globals()
+        else os.getcwd()
+    )
+
+    csv_filename = os.path.join(current_dir, "Deformed_Coords.csv")
+    output_filename = os.path.join(current_dir, "corrected_deformed_coords.csv")
 
     nx_nodes = nx_elem + 1
     ny_nodes = ny_elem + 1
@@ -114,4 +122,4 @@ def correct_and_plot_nodes(
     plt.show()
 
 
-correct_and_plot_nodes("NLFEM_Assignments\Assignment_1\Deformed_Coords.csv")
+correct_and_plot_nodes()
