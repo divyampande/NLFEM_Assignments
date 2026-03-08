@@ -4,6 +4,7 @@ from matplotlib.collections import PolyCollection
 import os
 from scipy.interpolate import griddata
 
+
 # Choose "element" for cell-centered constant values
 # Choose "nodal" for smoothed nodal averaged values
 # Choose "gauss_surface" for plots suggested in the assignment
@@ -60,9 +61,6 @@ if len(x_nodes) != len(X_nodes):
     exit()
 
 
-import numpy as np
-
-
 def compute_kinematics_vectorized(X_elems, x_elems, xi=0.0, eta=0.0):
     xi_n = np.array([-1, 1, 1, -1])
     eta_n = np.array([-1, -1, 1, 1])
@@ -99,12 +97,12 @@ def compute_kinematics_vectorized(X_elems, x_elems, xi=0.0, eta=0.0):
     return F, E, e, eps
 
 
+# Shape: (N_elems, 4, 2)
+X_elems = X_nodes[conn]
+x_elems = x_nodes[conn]
+
 # Computation
 if COMPUTE_MODE == "element":
-    # Shape: (N_elems, 4, 2)
-    X_elems = X_nodes[conn]
-    x_elems = x_nodes[conn]
-
     # Evaluate at element center for the entire mesh
     F_results, E_results, e_results, eps_results = compute_kinematics_vectorized(
         X_elems, x_elems, xi=0.0, eta=0.0
@@ -120,9 +118,6 @@ elif COMPUTE_MODE == "nodal":
     node_counts = np.zeros(num_nodes)
 
     node_nat_coords = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
-
-    X_elems = X_nodes[conn]
-    x_elems = x_nodes[conn]
 
     for j, (xi_val, eta_val) in enumerate(node_nat_coords):
         F, E, e, eps = compute_kinematics_vectorized(
@@ -165,9 +160,6 @@ elif COMPUTE_MODE == "gauss_surface":
     e_gp_array = np.zeros((num_elems, num_gp, 2, 2))
     eps_gp_array = np.zeros((num_elems, num_gp, 2, 2))
 
-    X_elems = X_nodes[conn]
-    x_elems = x_nodes[conn]
-
     # Loop over the 4 Gauss points
     for gp_idx, (xi_val, eta_val) in enumerate(gauss_points):
         F, E, e, eps = compute_kinematics_vectorized(
@@ -201,21 +193,21 @@ elif COMPUTE_MODE == "gauss_surface":
 results_dir = os.path.join(current_dir, "results")
 os.makedirs(results_dir, exist_ok=True)
 
-# Save Tensors as .npy files inside the results folder
-np.save(
-    os.path.join(results_dir, f"Deformation_Gradient_F_{COMPUTE_MODE}.npy"), F_results
-)
-np.save(
-    os.path.join(results_dir, f"Green_Lagrange_Strain_E_{COMPUTE_MODE}.npy"), E_results
-)
-np.save(
-    os.path.join(results_dir, f"Eulerian_Strain_e_{COMPUTE_MODE}.npy"),
-    e_results,
-)
-np.save(
-    os.path.join(results_dir, f"Engineering_Strain_eps_{COMPUTE_MODE}.npy"), eps_results
-)
-print(f"Successfully saved tensor data to {results_dir}")
+# Uncomment the following lines to save the tensors as .npy files inside the results folder
+# np.save(
+#     os.path.join(results_dir, f"Deformation_Gradient_F_{COMPUTE_MODE}.npy"), F_results
+# )
+# np.save(
+#     os.path.join(results_dir, f"Green_Lagrange_Strain_E_{COMPUTE_MODE}.npy"), E_results
+# )
+# np.save(
+#     os.path.join(results_dir, f"Eulerian_Strain_e_{COMPUTE_MODE}.npy"),
+#     e_results,
+# )
+# np.save(
+#     os.path.join(results_dir, f"Engineering_Strain_eps_{COMPUTE_MODE}.npy"), eps_results
+# )
+# print(f"Successfully saved tensor data to {results_dir}")
 
 
 # Plotting
@@ -269,7 +261,7 @@ plt.show()
 # Plotting Strain Components
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 titles = ["$E_{11}$", "$E_{22}$", "$E_{12}$"]
-verts = [X_nodes[element] for element in conn]
+verts = X_nodes[conn]
 
 if COMPUTE_MODE == "element":
     # Extract components
@@ -277,7 +269,6 @@ if COMPUTE_MODE == "element":
     E22 = E_results[:, 1, 1]
     E12 = E_results[:, 0, 1]
     strains = [E11, E22, E12]
-    verts = [X_nodes[element] for element in conn]
 
     for ax, strain_data, title in zip(axes, strains, titles):
         poly = PolyCollection(verts, cmap="jet", edgecolor="black", linewidth=0.5)
