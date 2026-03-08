@@ -211,7 +211,8 @@ elif COMPUTE_MODE == "gauss_surface":
     E_results = np.array(E_gp_list)
     e_results = np.array(e_gp_list)
     eps_results = np.array(eps_gp_list)
-# Save Tensors as .npy files
+
+
 # Create a results subdirectory
 results_dir = os.path.join(current_dir, "results")
 os.makedirs(results_dir, exist_ok=True)
@@ -223,7 +224,10 @@ np.save(
 np.save(
     os.path.join(results_dir, f"Green_Lagrange_Strain_E_{COMPUTE_MODE}.npy"), E_results
 )
-np.save(os.path.join(results_dir, f"Eulerian_Strain_e_{COMPUTE_MODE}.npy"), e_results)
+np.save(
+    os.path.join(results_dir, f"Eulerian_Strain_e_{COMPUTE_MODE}.npy"),
+    e_results,
+)
 np.save(
     os.path.join(results_dir, f"Engineering_Strain_eps_{COMPUTE_MODE}.npy"), eps_results
 )
@@ -324,7 +328,7 @@ elif COMPUTE_MODE == "gauss_surface":
         # Interpolate scattered Gauss point strains onto the dense grid
         grid_strain = griddata(gp_coords, strain_data, (grid_x, grid_y), method="cubic")
 
-        # Plot using contourf (equivalent to MATLAB's surf/contour)
+        # Plot using contourf
         contour = ax.contourf(grid_x, grid_y, grid_strain, levels=50, cmap="jet")
         fig.colorbar(contour, ax=ax, fraction=0.046, pad=0.04)
 
