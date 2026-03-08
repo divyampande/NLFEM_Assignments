@@ -60,72 +60,59 @@ if len(x_nodes) != len(X_nodes):
     exit()
 
 
-def compute_kinematics(X_elem, Y_elem, x_elem, y_elem, xi=0.0, eta=0.0):
+import numpy as np
+
+
+def compute_kinematics_vectorized(X_elems, x_elems, xi=0.0, eta=0.0):
     xi_n = np.array([-1, 1, 1, -1])
     eta_n = np.array([-1, -1, 1, 1])
 
     dN_dxi = 0.25 * xi_n * (1 + eta_n * eta)
     dN_deta = 0.25 * eta_n * (1 + xi_n * xi)
 
-    J = np.array(
-        [
-            [np.dot(dN_dxi, X_elem), np.dot(dN_dxi, Y_elem)],
-            [np.dot(dN_deta, X_elem), np.dot(dN_deta, Y_elem)],
-        ]
-    )
+    # Shape: (2, 4)
+    dN_dnat = np.vstack((dN_dxi, dN_deta))
 
+    # Jacobian. Shape (N, 2, 2)
+    J = np.einsum("ij, Njk -> Nik", dN_dnat, X_elems)
     J_inv = np.linalg.inv(J)
 
-    dN_dnat = np.vstack((dN_dxi, dN_deta))
-    dN_dphys = np.dot(J_inv, dN_dnat)
+    # Physical derivatives. Shape: (N, 2, 4)
+    dN_dphys = np.einsum("Nij, jk -> Nik", J_inv, dN_dnat)
 
-    dN_dX = dN_dphys[0, :]
-    dN_dY = dN_dphys[1, :]
+    # Deformation Gradient. Shape: (N, 2, 2)
+    F = np.einsum("Nik, Nkj -> Nij", dN_dphys, x_elems)
 
-    F = np.array(
-        [
-            [np.dot(dN_dX, x_elem), np.dot(dN_dY, x_elem)],
-            [np.dot(dN_dX, y_elem), np.dot(dN_dY, y_elem)],
-        ]
-    )
-
-    # Green-Lagrange Strain Tensor (E)
+    # Transposes for batched arrays
+    F_T = np.transpose(F, axes=(0, 2, 1))
     I = np.eye(2)
-    E = 0.5 * (np.dot(F.T, F) - I)
 
-    # Eulerian / Almansi Strain Tensor (e)
+    # Strain Tensors for ALL elements
+    E = 0.5 * (np.matmul(F_T, F) - I)
+
     F_inv = np.linalg.inv(F)
-    e = 0.5 * (I - np.dot(F_inv.T, F_inv))
+    F_inv_T = np.transpose(F_inv, axes=(0, 2, 1))
+    e = 0.5 * (I - np.matmul(F_inv_T, F_inv))
 
-    # Engineering Strain Tensor (eps)
-    eps = 0.5 * (F + F.T) - I
+    eps = 0.5 * (F + F_T) - I
 
     return F, E, e, eps
 
 
 # Computation
 if COMPUTE_MODE == "element":
-    F_results = np.zeros((len(conn), 2, 2))
-    E_results = np.zeros((len(conn), 2, 2))
-    e_results = np.zeros((len(conn), 2, 2))
-    eps_results = np.zeros((len(conn), 2, 2))
+    # Shape: (N_elems, 4, 2)
+    X_elems = X_nodes[conn]
+    x_elems = x_nodes[conn]
 
-    for i, element in enumerate(conn):
-        X_elem_math, Y_elem_math = X_nodes[element, 0], X_nodes[element, 1]
-        x_elem_math, y_elem_math = x_nodes[element, 0], x_nodes[element, 1]
-
-        # Evaluate at element center
-        F, E, e, eps = compute_kinematics(
-            X_elem_math, Y_elem_math, x_elem_math, y_elem_math, xi=0.0, eta=0.0
-        )
-        F_results[i] = F
-        E_results[i] = E
-        e_results[i] = e
-        eps_results[i] = eps
+    # Evaluate at element center for the entire mesh
+    F_results, E_results, e_results, eps_results = compute_kinematics_vectorized(
+        X_elems, x_elems, xi=0.0, eta=0.0
+    )
 
 elif COMPUTE_MODE == "nodal":
-    # Initialize arrays for nodal averaging
     num_nodes = len(X_nodes)
+
     F_sum = np.zeros((num_nodes, 2, 2))
     E_sum = np.zeros((num_nodes, 2, 2))
     e_sum = np.zeros((num_nodes, 2, 2))
@@ -134,37 +121,33 @@ elif COMPUTE_MODE == "nodal":
 
     node_nat_coords = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
 
-    for i, element in enumerate(conn):
-        X_elem_math, Y_elem_math = X_nodes[element, 0], X_nodes[element, 1]
-        x_elem_math, y_elem_math = x_nodes[element, 0], x_nodes[element, 1]
+    X_elems = X_nodes[conn]
+    x_elems = x_nodes[conn]
 
-        # Evaluate at all 4 nodes and add to global sum
-        for j, (xi_val, eta_val) in enumerate(node_nat_coords):
-            F, E, e, eps = compute_kinematics(
-                X_elem_math,
-                Y_elem_math,
-                x_elem_math,
-                y_elem_math,
-                xi=xi_val,
-                eta=eta_val,
-            )
-            global_node_idx = element[j]
+    for j, (xi_val, eta_val) in enumerate(node_nat_coords):
+        F, E, e, eps = compute_kinematics_vectorized(
+            X_elems, x_elems, xi=xi_val, eta=eta_val
+        )
 
-            F_sum[global_node_idx] += F
-            E_sum[global_node_idx] += E
-            e_sum[global_node_idx] += e
-            eps_sum[global_node_idx] += eps
-            node_counts[global_node_idx] += 1
+        # Get the global node IDs for this specific corner (j) across all elements
+        global_nodes_j = conn[:, j]
 
-    # Average the tensors at the nodes
+        # Assembly (Scatter and Add)
+        np.add.at(F_sum, global_nodes_j, F)
+        np.add.at(E_sum, global_nodes_j, E)
+        np.add.at(e_sum, global_nodes_j, e)
+        np.add.at(eps_sum, global_nodes_j, eps)
+        np.add.at(node_counts, global_nodes_j, 1)
+
+    # Average the tensors
     counts_reshaped = node_counts[:, None, None]
     F_results = F_sum / counts_reshaped
     E_results = E_sum / counts_reshaped
     e_results = e_sum / counts_reshaped
     eps_results = eps_sum / counts_reshaped
 
+
 elif COMPUTE_MODE == "gauss_surface":
-    # 2x2 Gauss integration points
     gauss_val = 1.0 / np.sqrt(3.0)
     gauss_points = [
         (-gauss_val, -gauss_val),
@@ -173,44 +156,45 @@ elif COMPUTE_MODE == "gauss_surface":
         (-gauss_val, gauss_val),
     ]
 
-    gp_coords = []
-    F_gp_list, E_gp_list, e_gp_list, eps_gp_list = [], [], [], []
+    num_elems = len(conn)
+    num_gp = len(gauss_points)
 
-    for i, element in enumerate(conn):
-        X_elem_math, Y_elem_math = X_nodes[element, 0], X_nodes[element, 1]
-        x_elem_math, y_elem_math = x_nodes[element, 0], x_nodes[element, 1]
+    gp_coords = np.zeros((num_elems, num_gp, 2))
+    F_gp_array = np.zeros((num_elems, num_gp, 2, 2))
+    E_gp_array = np.zeros((num_elems, num_gp, 2, 2))
+    e_gp_array = np.zeros((num_elems, num_gp, 2, 2))
+    eps_gp_array = np.zeros((num_elems, num_gp, 2, 2))
 
-        for xi_val, eta_val in gauss_points:
-            F, E, e, eps = compute_kinematics(
-                X_elem_math,
-                Y_elem_math,
-                x_elem_math,
-                y_elem_math,
-                xi=xi_val,
-                eta=eta_val,
-            )
+    X_elems = X_nodes[conn]
+    x_elems = x_nodes[conn]
 
-            # Compute physical coordinates of the Gauss Point in the current (deformed) space
-            N1 = 0.25 * (1 - xi_val) * (1 - eta_val)
-            N2 = 0.25 * (1 + xi_val) * (1 - eta_val)
-            N3 = 0.25 * (1 + xi_val) * (1 + eta_val)
-            N4 = 0.25 * (1 - xi_val) * (1 + eta_val)
-            N = np.array([N1, N2, N3, N4])
+    # Loop over the 4 Gauss points
+    for gp_idx, (xi_val, eta_val) in enumerate(gauss_points):
+        F, E, e, eps = compute_kinematics_vectorized(
+            X_elems, x_elems, xi=xi_val, eta=eta_val
+        )
 
-            x_GP = np.dot(N, x_elem_math)
-            y_GP = np.dot(N, y_elem_math)
+        N1 = 0.25 * (1 - xi_val) * (1 - eta_val)
+        N2 = 0.25 * (1 + xi_val) * (1 - eta_val)
+        N3 = 0.25 * (1 + xi_val) * (1 + eta_val)
+        N4 = 0.25 * (1 - xi_val) * (1 + eta_val)
+        N = np.array([N1, N2, N3, N4])
 
-            gp_coords.append((x_GP, y_GP))
-            F_gp_list.append(F)
-            E_gp_list.append(E)
-            e_gp_list.append(e)
-            eps_gp_list.append(eps)
+        # Vectorized calculation of physical GP coordinates for all elements
+        gp_coords[:, gp_idx, :] = np.einsum("j, Njk -> Nk", N, x_elems)
 
-    gp_coords = np.array(gp_coords)
-    F_results = np.array(F_gp_list)
-    E_results = np.array(E_gp_list)
-    e_results = np.array(e_gp_list)
-    eps_results = np.array(eps_gp_list)
+        # Store results in the pre-allocated block
+        F_gp_array[:, gp_idx, :, :] = F
+        E_gp_array[:, gp_idx, :, :] = E
+        e_gp_array[:, gp_idx, :, :] = e
+        eps_gp_array[:, gp_idx, :, :] = eps
+
+    # Flatten the arrays so each Gauss point acts as a separate entry
+    gp_coords = gp_coords.reshape(-1, 2)
+    F_results = F_gp_array.reshape(-1, 2, 2)
+    E_results = E_gp_array.reshape(-1, 2, 2)
+    e_results = e_gp_array.reshape(-1, 2, 2)
+    eps_results = eps_gp_array.reshape(-1, 2, 2)
 
 
 # Create a results subdirectory
