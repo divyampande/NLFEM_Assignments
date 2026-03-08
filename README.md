@@ -13,6 +13,7 @@ This repository contains the programming assignments, computational solvers, and
 The scripts in this repository primarily rely on the standard scientific Python stack:
 * `numpy`
 * `matplotlib`
+* `os`
 
 ## License
 This project is for educational and academic purposes.
