@@ -1,0 +1,3 @@
+%function to compute VE history variable
+function[H_prev] = compute_VE_history_variable(strn_cur_pred, H_prev, del_t, prony_terms,E_prony, lambda_prony, nel,...
+                            strain_prev, E_inf)
