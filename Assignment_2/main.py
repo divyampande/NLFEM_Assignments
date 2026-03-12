@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 
 def solve_nonlinear_bar(L, A, E, m, F_total, n_elem, n_steps):
@@ -79,12 +80,22 @@ if __name__ == "__main__":
     m = 40.0
     F_total = 10000.0
 
-    n_elem = 100
-    n_steps = 1
+    n_elem = 10000
+    n_steps = 20
+    print("Starting benchmark...")
 
+    # 1. Start the stopwatch
+    start_time = time.perf_counter()
     u_hist, f_hist, eps_hist, sig_hist = solve_nonlinear_bar(
         L, A, E, m, F_total, n_elem, n_steps
     )
+    # 3. Stop the stopwatch
+    end_time = time.perf_counter()
+
+    # 4. Calculate the difference
+    execution_time = end_time - start_time
+
+    print(f"Solver execution time: {execution_time:.6f} seconds")
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
