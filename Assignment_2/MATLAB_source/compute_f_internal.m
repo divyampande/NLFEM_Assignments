@@ -1,11 +1,25 @@
-%function to compute internal force vector
-function[f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp)
-[B] = Shape_function_fun( lel);
-F_int_local=zeros ( 2*nel ,1) ; F_int_glbl = zeros(nnp, 1);
-syms x                              % for integration-
-for i = 1:nel
-    F_int_local([(2*i-1), 2*i],:) =  int(B'*stress_cur_pred(i,1), x, x_cord(i), x_cord(i+1));                 % elemental f_int
-    F_int_glbl(element_nodes(i,:), 1) = F_int_glbl(element_nodes(i,:), 1) + F_int_local([(2*i-1), 2*i],:); % global f_int
+function [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp)
+    [B] = Shape_function_fun(lel);
+    F_int_local = zeros(2*nel, 1);
+    F_int_glbl = zeros(nnp, 1);
+    
+    A = 1e-4;
+    n_gauss = 2;
+    [weight_coeff, ~] = Gauss_quad_fun(n_gauss);
+    detJ = lel / 2;
+    
+    for i = 1:nel
+        f_int_ele = zeros(2, 1);
+        
+        % Fetch the constant stress for this linear element
+        sigma = stress_cur_pred(i, 1);
+        
+        for j = 1:n_gauss
+            f_int_ele = f_int_ele + weight_coeff(j) * (B' * sigma) * A * detJ;
+        end
+        
+        F_int_local([(2*i-1), 2*i],:) = f_int_ele;
+        F_int_glbl(element_nodes(i,:), 1) = F_int_glbl(element_nodes(i,:), 1) + f_int_ele;
+    end
+    f_int_global = F_int_glbl;
 end
-
-f_int_global = F_int_glbl;

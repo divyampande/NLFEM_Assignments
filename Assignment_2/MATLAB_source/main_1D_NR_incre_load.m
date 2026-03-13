@@ -1,21 +1,31 @@
 %main file to simulate 1D NBC loading in 1D linear elastic material
 %incremental loading approach-based calculation is adopted here
-clear all; clc; close all;
+clear; clc; close all;
 %---------------(material properties)-------------------%
-E_0 = 100e9; %Young's modulus
-m_loading = 1; %loading factor for NBC increment
+%---------------(material properties)-------------------%
+E_0 = 100e6; % Young's modulus = 100 MPa
+m = 40; % Material constant 'm' from problem statement
+A = 1e-4; % Cross-sectional area
 
-L= 2;                        % Length of bar / domain (in m)
-nel=10;                        % Number of FE element
-tolerance = 1e-15;
-outer_itrns = 100;                          % size of outer iteration
-inner_itern = 25; %NR inner iterations
+L = 1; % Length of bar = 1 m
+nel = 10; % Number of FE elements
+tolerance = 1e-8; % Relaxed slightly for non-linear convergence
+
+outer_itrns = 101; % 100 steps of loading
+inner_itern = 25; % NR inner iterations
+
+%-----(Initial Tangent Stiffness Calculation)-----%
 C_T = zeros(nel,1);
 for i=1:nel
-    C_T(i,1) = E_0; %add an appropriate expression
+    % At initial state, strain is 0. 
+    % The derivative of E*atan(m*e) evaluated at e=0 is E*m.
+    C_T(i,1) = E_0 * m; 
 end
+
 %-----------------(Boundary condition)-----------------%
-traction_val =  .5;                    % NBC value (in N/m^2)
+total_force = 10000; % Total applied force = 10 kN
+traction_val = total_force / (outer_itrns - 1);  % Incremental load per step
+
 del_u = 1;                          % DBC including (small disp at each outer iteration)
 DBC_val_1st_node  = 0 ;                % All the case having zero disp at first node (fixed end)
 NBC_val_last_node_C1 = traction_val ;  % NBC at last node
@@ -140,4 +150,28 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
     U_global_history(i,:) = u_cur_corr;
     f_internal_history(i,:) = f_int_global;
 end %fi i=1:outer_iterns
-plot(elemental_strain_history(:, nel), elemental_stress_history(:, nel), '.-');
+
+% The following lines are added to plot the results after the simulation is complete.
+% Figure 1: Stress-Strain curve for the last element
+figure(1);
+plot(elemental_strain_history(:, nel)*100, elemental_stress_history(:, nel)/10^6, 'b.-', 'LineWidth', 1.5, 'MarkerSize', 12);
+grid on;
+xlabel('Strain (\epsilon) [%]', 'FontSize', 12, 'FontWeight', 'bold');
+ylabel('Stress (\sigma) [MPa]', 'FontSize', 12, 'FontWeight', 'bold');
+title('Nonlinear Material Response (\sigma-\epsilon) in Last Element', 'FontSize', 14);
+% Figure 2: Applied Force vs Displacement
+figure(2);
+plot(U_global_history(:, nnp), f_ext_right(1, :), 'r.-', 'LineWidth', 1.5, 'MarkerSize', 12);
+grid on;
+xlabel('Displacement at Right End Node (m)', 'FontSize', 12, 'FontWeight', 'bold');
+ylabel('Applied Force F (N)', 'FontSize', 12, 'FontWeight', 'bold');
+title('Applied Force vs. Reaction Displacement', 'FontSize', 14);
+
+% --- Save the plots for the LaTeX report ---
+% Save Figure 1 (Stress-Strain) with 300 DPI resolution
+exportgraphics(figure(1), 'stress_strain_plot.png', 'Resolution', 300);
+
+% Save Figure 2 (Force-Displacement) with 300 DPI resolution
+exportgraphics(figure(2), 'force_disp_plot.png', 'Resolution', 300);
+
+disp('Plots successfully saved to the current directory!');
