@@ -8,7 +8,7 @@ m = 40; % Material constant 'm' from problem statement
 A = 1e-4; % Cross-sectional area
 
 L = 1; % Length of bar = 1 m
-nel = 10; % Number of FE elements
+nel = 50; % Number of FE elements
 tolerance = 1e-8; % Relaxed slightly for non-linear convergence
 
 outer_itrns = 101; % 100 steps of loading
@@ -167,11 +167,5 @@ xlabel('Displacement at Right End Node (m)', 'FontSize', 12, 'FontWeight', 'bold
 ylabel('Applied Force F (N)', 'FontSize', 12, 'FontWeight', 'bold');
 title('Applied Force vs. Reaction Displacement', 'FontSize', 14);
 
-% --- Save the plots for the LaTeX report ---
-% Save Figure 1 (Stress-Strain) with 300 DPI resolution
-exportgraphics(figure(1), 'stress_strain_plot.png', 'Resolution', 300);
-
-% Save Figure 2 (Force-Displacement) with 300 DPI resolution
-exportgraphics(figure(2), 'force_disp_plot.png', 'Resolution', 300);
-
-disp('Plots successfully saved to the current directory!');
+% 0.038935088729518 n=10
+% 0.038935088729518 n=50
