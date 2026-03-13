@@ -7,7 +7,8 @@
 % the integration term involve in the global stiffness matrix
 %=========================================================================%
 
-function [elemental_strain, elemental_gauss_point_flux]= Gauss_point_flux_fun( nel, lel, U_curr, element_nodes, elemental_pressure, E, beta, del_T, alfa, zeta)
+function [elemental_strain, elemental_gauss_point_flux]= Gauss_point_flux_fun( nel, lel, U_curr, element_nodes, elemental_pressure, ...
+    E, beta, del_T, alfa, zeta)
 
 %disp(nel) ; 
 elemental_strain= zeros(nel,1);

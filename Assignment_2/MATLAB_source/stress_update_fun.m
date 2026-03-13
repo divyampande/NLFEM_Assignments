@@ -1,5 +1,5 @@
-% damage is dependenet on disp so no ned to update in maain file-
-% the moment we upadte the disp damge will aotomatically will gwt updated
+% damage is dependenet on disp so no need to update in main file-
+% the moment we update the disp damage will automatically will get updated
 
 %------------------------------------------------------
 % This function is just to update stress without updating damage
@@ -13,26 +13,6 @@
 %     elmn_strn(i, 1)= B*U_prev([i,i+1],1);                       % elemental strain
 %     elmn_sig(i, 1)= (1- D_cur(i, 1))*E*elmn_strn(i, 1);     % elemental stress
 % end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function [elmn_sig, elmn_strn, D_cur]= stress_update_fun(U_prev, lel, nel, W, E, m, D_tr)
 [B] = Shape_function_fun( lel);
