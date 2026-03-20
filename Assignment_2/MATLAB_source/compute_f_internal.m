@@ -12,9 +12,8 @@ function [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, 
         f_int_ele = zeros(2, 1);
         
         % Fetch the constant stress for this linear element
-        sigma = stress_cur_pred(i, 1);
-        
         for j = 1:n_gauss
+            sigma = stress_cur_pred(i, j);   % <-- now inside loop, correct GP index
             f_int_ele = f_int_ele + weight_coeff(j) * (B' * sigma) * A * detJ;
         end
         

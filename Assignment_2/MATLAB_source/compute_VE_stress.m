@@ -1,19 +1,15 @@
-%function to compute stress
+% REPLACE the function body with:
 function [stress_cur_pred, C_T_all] = compute_VE_stress(strn_cur_pred, E_0, nel, ~)
-    strs_tmp = zeros(nel, 1); 
-    C_T_all = zeros(nel, 1);
-    
-    m = 40; % Material constant from problem statement
-    
+    m = 40;
+    [~, n_gauss] = size(strn_cur_pred);
+    strs_tmp = zeros(nel, n_gauss);      
+    C_T_all  = zeros(nel, n_gauss);      
     for i = 1:nel
-        epsilon = strn_cur_pred(i, 1); 
-        
-        % Non-linear stress equation
-        strs_tmp(i, 1) = E_0 * atan(m * epsilon); 
-        
-        % Tangent Modulus (derivative of stress wrt strain)
-        C_T_all(i, 1) = (E_0 * m) / (1 + (m * epsilon)^2); 
+        for j = 1:n_gauss               
+            eps = strn_cur_pred(i, j);  
+            strs_tmp(i,j) = E_0 * atan(m * eps);
+            C_T_all(i,j)  = (E_0 * m) / (1 + (m*eps)^2);
+        end
     end
-    
     stress_cur_pred = strs_tmp;
 end

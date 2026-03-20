@@ -15,11 +15,12 @@ outer_itrns = 101; % 100 steps of loading
 inner_itern = 25; % NR inner iterations
 
 %-----(Initial Tangent Stiffness Calculation)-----%
-C_T = zeros(nel,1);
-for i=1:nel
-    % At initial state, strain is 0. 
-    % The derivative of E*atan(m*e) evaluated at e=0 is E*m.
-    C_T(i,1) = E_0 * m; 
+n_gauss = 2;
+C_T = zeros(nel, n_gauss);
+for i = 1:nel
+    for j = 1:n_gauss
+        C_T(i,j) = E_0 * m;
+    end
 end
 
 %-----------------(Boundary condition)-----------------%
@@ -56,8 +57,8 @@ disp(' Global stiffness matrix genetrated ');
 %======================================%
 %  (NL_FEM starts here (NR_approach))  %
 %======================================%
-elemental_strain_history= zeros(outer_itrns, nel);  % strain preallocation
-elemental_stress_history= zeros(outer_itrns, nel);  % stress preallocation
+elemental_strain_history = zeros(outer_itrns, nel, n_gauss);
+elemental_stress_history = zeros(outer_itrns, nel, n_gauss);
 f_internal_history = zeros(outer_itrns, nnp);
 U_global_history = zeros(outer_itrns, nnp) ; %storing deformation history
 f_int_left = zeros(1, outer_itrns);%storing left node internal force
@@ -65,7 +66,7 @@ f_int_right = zeros(1, outer_itrns); %storing right node internal force
 f_ext_right = zeros(1, outer_itrns);%storing applied force at right node
 %---------------( disp array initialization)---------------%
 % initialize all nodal disp ==0, DBC node will be modified as per DBC value
-U_prev = zeros(nnp, 1); stress_prev = zeros(nel,1); strain_prev = zeros(nel,1);
+U_prev = zeros(nnp, 1); stress_prev = zeros(nel, n_gauss); strain_prev = zeros(nel, n_gauss);
 f_int_prev = zeros(nnp,1);
 tot_DBC_nodes = 0; index_nodes_DBC = zeros(1,2);
 
@@ -102,6 +103,7 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
     strn_cur_pred = dstrn_cur_pred + strain_prev;
     %--------update stress and internal force vector------------------------------
     [stress_cur_pred, C_T_all] = compute_VE_stress(strn_cur_pred, E_0, nel, strain_prev);
+    C_T = C_T_all;
     [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp);
     %--------update stress and internal force vector------------------------------
     residual_cur = f_int_global - f_ext_total;
@@ -127,6 +129,7 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
             [dstrn_cur_pred] = compute_strain(du_curr_total, lel, nel);
             strn_cur_pred = dstrn_cur_pred + strain_prev;
             [stress_cur_pred, H_all] = compute_VE_stress(strn_cur_pred, E_0, nel, strain_prev);
+            C_T = H_all;
             [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp);
             residual_cur = f_int_global - f_ext_total;
             residual_cur_free = zeros(nnp,1);
@@ -146,7 +149,8 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
     U_prev = u_cur_corr ; strain_prev = strn_cur_pred;
    f_ext_right(1,i) = f_ext_total(nnp,1);
     %---------update history variables---------------
-    elemental_strain_history(i,:) = strn_cur_pred; elemental_stress_history(i,:) = stress_cur_pred;
+    elemental_strain_history(i,:,:) = strn_cur_pred;
+    elemental_stress_history(i,:,:) = stress_cur_pred;
     U_global_history(i,:) = u_cur_corr;
     f_internal_history(i,:) = f_int_global;
 end %fi i=1:outer_iterns
@@ -154,7 +158,10 @@ end %fi i=1:outer_iterns
 % The following lines are added to plot the results after the simulation is complete.
 % Figure 1: Stress-Strain curve for the last element
 figure(1);
-plot(elemental_strain_history(:, nel)*100, elemental_stress_history(:, nel)/10^6, 'b.-', 'LineWidth', 1.5, 'MarkerSize', 12);
+% REPLACE line 157 with:
+plot(squeeze(elemental_strain_history(:, nel, 1))*100, ...
+     squeeze(elemental_stress_history(:, nel, 1))/10^6, ...
+     'b.-', 'LineWidth', 1.5, 'MarkerSize', 12);
 grid on;
 xlabel('Strain (\epsilon) [%]', 'FontSize', 12, 'FontWeight', 'bold');
 ylabel('Stress (\sigma) [MPa]', 'FontSize', 12, 'FontWeight', 'bold');
