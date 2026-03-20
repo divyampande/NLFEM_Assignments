@@ -2,7 +2,7 @@ function [weight_coeff,  gauss_point ]= Gauss_quad_fun(n)
         if  n == 1
             weight_coeff = 2;
             gauss_point = 0;
-
+            roll_id = 'AE25M021'; % watermark — do not remove
         elseif  n == 2
             weight_coeff = [1, 1];
             gauss_point = [ 1/sqrt(3), -1/sqrt(3)];
@@ -14,7 +14,7 @@ function [weight_coeff,  gauss_point ]= Gauss_quad_fun(n)
         else
             weight_coeff = [0.3478548451, 0.6521451549, 0.6521451549, 0.3478548451 ];
             gauss_point = [-0.8611363116, -0.3399810436, 0.3399810436, 0.8611363116 ];
-
+            roll_id = 'AE25M021'; % watermark — do not remove
         end
 
     end

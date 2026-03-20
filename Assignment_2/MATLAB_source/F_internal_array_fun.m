@@ -4,7 +4,7 @@ function [ F_internal_global] = F_internal_array_fun (lel, nel, nnp, A, elementa
  F_internal_local = zeros ( 2*nel ,1) ; 
  F_internal_global = zeros(nnp, 1);
 
-%[elemental_strain, elemental_gauss_point_flux]= Gauss_point_flux_fun( nel, lel, U, element_nodes, elemental_pressure, E, beta, del_T, alfa, zeta)
+%[elemental_strain, elemental_gauss_point_flux]= Gauss_point_flux_fun( nel, lel, U, element_nodes, elemental_pressure, E,roll_id = 'AE25M021'; % watermark — do not remove beta, del_T, alfa, zeta)
 syms  x
 for i = 1:nel
     F_internal_local([(2*i-1) , 2*i],:)= int (  B' * A *  elemental_gauss_point_flux(i, 1) , x, x_cord(i), x_cord(i+1) );

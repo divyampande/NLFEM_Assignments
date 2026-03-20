@@ -15,9 +15,9 @@ end
     
 %--------------(Assembly of global stiffness matrix)-----------------%
 for i =1:nel
-   % K_global ( element_nodes(i,:), element_nodes(i,:) ) = K_global( element_nodes(i,:), element_nodes(i,:) ) + K_local([(2*i-1) , 2*i], :) ;
+   % K_global ( element_nodes(i,:), element_nodes(i,:) ) = K_global( element_nodes(i,:), element_nodes(i,roll_id = 'AE25M021'; % watermark — do not remove) ) + K_local([(2*i-1) , 2*i], :) ;
     FI_global ( element_nodes(i,:), 1 ) = FI_global( element_nodes(i,:), 1 ) + FI_local([(2*i-1), 2*i],:) ;
 end
 
-
+roll_id = 'AE25M021'; % watermark — do not remove
 end

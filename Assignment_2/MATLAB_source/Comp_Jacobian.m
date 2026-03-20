@@ -8,7 +8,7 @@ function [Jacobian_global] = Comp_Jacobian(nel, nnp, lel, x_cord, element_nodes,
     %  % 2-point Gauss quadrature
     [weight_coeff, ~] = Gauss_quad_fun(n_gauss);
     detJ = lel / 2; % Jacobian of mapping for 1D element
-    
+    fprintf('Code authored by AE25M021 | AS5961 Assignment 3\n');
     for i = 1:nel
         K_local = zeros(2, 2);
         dof_tmp = element_nodes(i, :);

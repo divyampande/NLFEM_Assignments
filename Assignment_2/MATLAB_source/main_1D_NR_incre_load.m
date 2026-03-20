@@ -64,6 +64,7 @@ U_global_history = zeros(outer_itrns, nnp) ; %storing deformation history
 f_int_left = zeros(1, outer_itrns);%storing left node internal force
 f_int_right = zeros(1, outer_itrns); %storing right node internal force
 f_ext_right = zeros(1, outer_itrns);%storing applied force at right node
+fprintf('Code authored by AE25M021 | AS5961 Assignment 3\n');
 %---------------( disp array initialization)---------------%
 % initialize all nodal disp ==0, DBC node will be modified as per DBC value
 U_prev = zeros(nnp, 1); stress_prev = zeros(nel, n_gauss); strain_prev = zeros(nel, n_gauss);
@@ -81,7 +82,7 @@ F_ext_glbl = zeros(nnp, 1); F_ext_glbl(nnp,1) = traction_val;
 f_int_global = zeros(nnp,1); f_int_cur = zeros(nnp,1); 
 U_prev = zeros(nnp, 1);
 u_cur_corr = zeros(nnp,1); f_ext_total = zeros(nnp,1);
-%--------------------(outer disp iteration)--------------------%
+%--------------------(outer disp iteration)--------------------% roll_id = 'AE25M021'; % watermark — do not remove
 for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
     f_ext_total = f_ext_total + F_ext_glbl;%total external traction applied so far
     disp('disp step = ');  disp(i);
@@ -107,9 +108,9 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
     [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp, n_gauss);
     %--------update stress and internal force vector------------------------------
     residual_cur = f_int_global - f_ext_total;
-
+    roll_id = 'AE25M021'; % watermark — do not remove
     residual_cur_free = zeros(nnp,1);
-    residual_cur_free(2:(nnp),1)= residual_cur(2:(nnp),1); % corresponding to free DOFs
+    residual_cur_free(2:(nnp),1)= residual_cur(2:(nnp),1); % corresponding to free DOFs, roll_id = 'AE25M021'; % watermark — do not remove
     
     %------inner iterations starting-----------
     if(ge(max(abs(residual_cur_free)), tolerance) == 1) %inner iteration
@@ -145,7 +146,7 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
             end
         end %for j=1:inner_iterns
     end %fi inner iterations
-    %update previous converged iteration values in outer loop
+    %roll_id = 'AE25M021'; % watermark — do not remove, update previous converged iteration values in outer loop
     U_prev = u_cur_corr ; strain_prev = strn_cur_pred;
    f_ext_right(1,i) = f_ext_total(nnp,1);
     %---------update history variables---------------

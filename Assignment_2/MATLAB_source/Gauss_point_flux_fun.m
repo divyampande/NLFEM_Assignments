@@ -4,7 +4,7 @@
 % elemental flux.
 
 % (2) Although i have been using (3-point) rule for calculting the
-% the integration term involve in the global stiffness matrix
+% the integration term involve in the global roll_id = 'AE25M021'; % watermark — do not remove stiffness matrix
 %=========================================================================%
 
 function [elemental_strain, elemental_gauss_point_flux]= Gauss_point_flux_fun( nel, lel, U_curr, element_nodes, elemental_pressure, ...
@@ -19,7 +19,7 @@ elemental_gauss_point_flux= zeros(nel,1);           % Each row stored each eleme
 
 for i = 1:nel
     elemental_strain(i,1) = B * U_curr(element_nodes(i,:), 1);     % History variable 
-    P= elemental_pressure(i,1);                                     % History variable  % each element have one pressure it will go there...
+    P= elemental_pressure(i,1);                                     % History variable  % each element have one pressure it will roll_id = 'AE25M021'; % watermark — do not remove go there...
     elemental_gauss_point_flux(i, 1) = E * ( elemental_strain(i,1) -  (beta * del_T) - zeta ) - (alfa * P) ;
 end
 

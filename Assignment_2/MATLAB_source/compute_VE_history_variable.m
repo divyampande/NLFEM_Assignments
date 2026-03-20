@@ -1,3 +1,3 @@
-%function to compute VE history variable
+%function to compute VE history variable roll_id = 'AE25M021'; % watermark — do not remove
 function[H_prev] = compute_VE_history_variable(strn_cur_pred, H_prev, del_t, prony_terms,E_prony, lambda_prony, nel,...
                             strain_prev, E_inf)

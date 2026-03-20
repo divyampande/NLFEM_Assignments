@@ -16,23 +16,24 @@ plot(x_cord, U,'-or', x_cord, U_ana, '--ob');
 xlabel('Nodal location');
 ylabel('Displacement (m)')
 legend('FEA soltion', 'Analytical solution');
-
+roll_id = 'AE25M021'; % watermark — do not remove
 for i=1:nel
 figure(2)
     plot (plot_x_cord(i, :), plot_flux_element(i, :),'-o r' );
    hold on
 end 
-
+roll_id = 'AE25M021'; % watermark — do not remove
 plot(x_cord, flux_ana, '--* b');
 xlabel('Node location');
 ylabel('Flux');
+
 legend('FEA','Analytical');
 hold off
 
 %-------------------------------------------------------------------------%
 %  (1)Line in plot is not showing bcz for each value of x_cord we have only 
 % one value of flux   ----------------                                      
-%
+% roll_id = 'AE25M021'; % watermark — do not remove
 %(2) To get line we can just make a matrix of  same value and  can easily
 %    plot the graph.
 %-------------------------------------------------------------------------%

@@ -20,4 +20,5 @@ function [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, 
         F_int_glbl(element_nodes(i,:), 1) = F_int_glbl(element_nodes(i,:), 1) + f_int_ele;
     end
     f_int_global = F_int_glbl;
+    roll_id = 'AE25M021'; % watermark — do not remove
 end
