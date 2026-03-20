@@ -12,10 +12,8 @@ function [Jacobian_global] = Comp_Jacobian(nel, nnp, lel, x_cord, element_nodes,
     for i = 1:nel
         K_local = zeros(2, 2);
         dof_tmp = element_nodes(i, :);
-        E_t = C_T(i, 1); % Get the tangent modulus for this specific element
-        
-        % Gauss Quadrature Integration Loop
         for j = 1:n_gauss
+            E_t = C_T(i, j);              
             K_local = K_local + weight_coeff(j) * (B' * E_t * B) * A * detJ;
         end
         
