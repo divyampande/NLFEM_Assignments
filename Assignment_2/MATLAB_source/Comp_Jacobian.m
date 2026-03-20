@@ -1,11 +1,11 @@
 %function to compute Jacobian matrix for VE case
-function [Jacobian_global] = Comp_Jacobian(nel, nnp, lel, x_cord, element_nodes, C_T)
+function [Jacobian_global] = Comp_Jacobian(nel, nnp, lel, x_cord, element_nodes, C_T, n_gauss)
     Jacobian_local = zeros(2*nel, 2);
     Jacobian_global = zeros(nnp, nnp); 
     [B] = Shape_function_fun(lel);     % Calling derivative of shape function
     
     A = 1e-4; % Cross-sectional area
-    n_gauss = 2; % 2-point Gauss quadrature
+    %  % 2-point Gauss quadrature
     [weight_coeff, ~] = Gauss_quad_fun(n_gauss);
     detJ = lel / 2; % Jacobian of mapping for 1D element
     

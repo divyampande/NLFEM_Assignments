@@ -1,10 +1,9 @@
-function [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp)
+function [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp, n_gauss)
     [B] = Shape_function_fun(lel);
     F_int_local = zeros(2*nel, 1);
     F_int_glbl = zeros(nnp, 1);
     
     A = 1e-4;
-    n_gauss = 2;
     [weight_coeff, ~] = Gauss_quad_fun(n_gauss);
     detJ = lel / 2;
     
@@ -13,7 +12,7 @@ function [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, 
         
         % Fetch the constant stress for this linear element
         for j = 1:n_gauss
-            sigma = stress_cur_pred(i, j);   % <-- now inside loop, correct GP index
+            sigma = stress_cur_pred(i, j);  
             f_int_ele = f_int_ele + weight_coeff(j) * (B' * sigma) * A * detJ;
         end
         

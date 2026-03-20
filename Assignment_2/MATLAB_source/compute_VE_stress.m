@@ -1,6 +1,4 @@
-% REPLACE the function body with:
-function [stress_cur_pred, C_T_all] = compute_VE_stress(strn_cur_pred, E_0, nel, ~)
-    m = 40;
+function [stress_cur_pred, C_T_all] = compute_VE_stress(strn_cur_pred, E_0, nel, m, ~)
     [~, n_gauss] = size(strn_cur_pred);
     strs_tmp = zeros(nel, n_gauss);      
     C_T_all  = zeros(nel, n_gauss);      

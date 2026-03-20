@@ -90,7 +90,7 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
                                  % be used to compute incremental strain
     %--------(jacobian)-------------------------%
     residual_cur = zeros(nnp,1);
-    [Jacobian_global] = Comp_Jacobian(nel, nnp, lel, x_cord, element_nodes, C_T);
+    [Jacobian_global] = Comp_Jacobian(nel, nnp, lel, x_cord, element_nodes, C_T, n_gauss);
     [Jacobian_reduced, residual_reduced] = Jacobian_enforce_DBC_dbc_loading(no_of_dof, tot_DBC_nodes, index_nodes_DBC, ...
         Jacobian_global, F_ext_glbl, nnp, BC);
     %----------Jacobian computation + DBC----------
@@ -99,12 +99,12 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
     u_cur_corr = u_cur_pred; %total current displacement
     du_curr_total = du_cur_pred;
 
-    [dstrn_cur_pred] = compute_strain(du_cur_pred, lel, nel);
+    [dstrn_cur_pred] = compute_strain(du_cur_pred, lel, nel, n_gauss);
     strn_cur_pred = dstrn_cur_pred + strain_prev;
     %--------update stress and internal force vector------------------------------
-    [stress_cur_pred, C_T_all] = compute_VE_stress(strn_cur_pred, E_0, nel, strain_prev);
+    [stress_cur_pred, C_T_all] = compute_VE_stress(strn_cur_pred, E_0, nel,m, strain_prev);
     C_T = C_T_all;
-    [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp);
+    [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp, n_gauss);
     %--------update stress and internal force vector------------------------------
     residual_cur = f_int_global - f_ext_total;
 
@@ -116,7 +116,7 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
         du_corr_total = zeros(nnp,1); %total NR correction
         BC_tmp = zeros(1,2);
         for j=1:inner_itern
-            [Jacobian_global] = Comp_Jacobian(nel, nnp, lel, x_cord, element_nodes, C_T);
+            [Jacobian_global] = Comp_Jacobian(nel, nnp, lel, x_cord, element_nodes, C_T, n_gauss);
             [Jacobian_reduced, residual_reduced] = Jacobian_enforce_DBC_dbc_loading(no_of_dof, tot_DBC_nodes, index_nodes_DBC, ...
                         Jacobian_global, residual_cur, nnp, BC_tmp);
             du_corr = - Jacobian_reduced \ residual_cur_free;
@@ -126,11 +126,11 @@ for i = 2 : outer_itrns         %%%%(outer displacement loop)%%%%%
                                                         % displacement so far
             %du_curr_total: it can be used to compute incremental strain and 
             % add it to previous strain to get total current strain. 
-            [dstrn_cur_pred] = compute_strain(du_curr_total, lel, nel);
+            [dstrn_cur_pred] = compute_strain(du_curr_total, lel, nel, n_gauss);
             strn_cur_pred = dstrn_cur_pred + strain_prev;
-            [stress_cur_pred, H_all] = compute_VE_stress(strn_cur_pred, E_0, nel, strain_prev);
+            [stress_cur_pred, H_all] = compute_VE_stress(strn_cur_pred, E_0, nel,m, strain_prev);
             C_T = H_all;
-            [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp);
+            [f_int_global] = compute_f_internal(stress_cur_pred, lel, nel, x_cord, element_nodes, nnp, n_gauss);
             residual_cur = f_int_global - f_ext_total;
             residual_cur_free = zeros(nnp,1);
             residual_cur_free(2:(nnp),1)= residual_cur(2:(nnp),1); % corresponding to free DOFs
