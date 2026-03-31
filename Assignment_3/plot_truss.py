@@ -105,7 +105,7 @@ if max_force > 0:
 
 # Formatting
 ax.set_title(
-    "Pre-Processing Verification: Undeformed Truss Mesh",
+    "Undeformed Truss Mesh",
     fontsize=15,
     fontweight="bold",
     pad=15,

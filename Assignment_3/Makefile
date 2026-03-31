@@ -30,7 +30,7 @@ $(TARGET): $(OBJS)
 
 # Rule to clean up the factory floor (delete .o, .mod, and the executable)
 clean:
-	del /Q /F *.o *.mod $(TARGET).exe
+	del /Q /F *.o *.mod
 
 # Rule to build AND run the code immediately
 run: $(TARGET)

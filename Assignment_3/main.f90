@@ -45,6 +45,8 @@ program main
         240.0_wp, 40.0_wp, 0.0_wp, -90000.0_wp & ! Load 1: Tip, Downward
         ! 240.0_wp, 0.0_wp, 90000.0_wp, 0.0_wp & ! Load 2: Tip, Rightward
     ], [4, num_loads])
+    real(wp), parameter :: n_steps = 90
+
 
     ! Variables for the search routines
     logical :: node_found
@@ -181,28 +183,39 @@ program main
     end do
     close(csv_elems)
     
-    print *, "Pre-processing export complete. Run Python script to view."
+    print *, "Pre-processing complete."
+
 
     ! INITIALIZE MATERIAL & SOLVER
-    ! Units: MMGS, so E = 200,000 MPa = 200,000 N/mm^2
+    
+    print *, "Initializing Material and FEA Model..."
+    
+    ! Instantiate the material using the Input Deck parameters
     my_mat = LinearElasticMaterial(E = E_mod)
     
-    ! ! We pass the mesh data into our new solver class
-    ! ! call model%init(n_node, n_elem, X, Y, conn, A=65.0_wp, mat_in=my_mat)
+    ! Pass the mesh arrays and properties to the solver class
+    call model%init(n_node, n_elem, X, Y, conn, A=A_cross, mat_in=my_mat)
 
-
-    ! ! EXECUTE INCREMENTAL NEWTON-RAPHSON
-
+    
+    ! EXECUTE INCREMENTAL NEWTON-RAPHSON SOLVER
+    
+    print *, "Starting Incremental Newton-Raphson Solver..."
     call system_clock(tick_start, tick_rate)
 
-    call model%solve_incremental(F_total = -90000.0_wp, & 
-                                 n_steps = 90, & 
-                                 max_iter = 50, &
+    call model%solve_incremental(F_ref = F_ref, & 
+                                 is_fixed = is_fixed, &
+                                 n_steps = n_steps, & 
+                                 max_iter = 50, &        
                                  u_final = u_final, &
                                  out_folder = trim(out_folder))
 
+    
     call system_clock(tick_end)
     elapsed_time = real(tick_end - tick_start, wp) / real(tick_rate, wp)
-    print '(A, F0.4, A)', ">>> Solver Time: ", elapsed_time, " seconds <<<"
+    
+    print *, "=========================================="
+    print '(A, F0.4, A)', " >>> Fortran Core Solver Time: ", elapsed_time, " seconds <<<"
+    print *, "=========================================="
+    print *, "Simulation Complete! Data exported to: ", trim(out_folder)
 
 end program main
