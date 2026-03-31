@@ -56,9 +56,10 @@ program main
     real(wp) :: F_ref(ndof)
     real(wp) :: u_final(ndof)
 
+    ! Output Variables
+    character(len=100) :: out_folder = "outputs/"
+    integer :: csv_nodes, csv_elems
 
-    character(len=100) :: out_folder = "Results/"
-    
     ! System Clock Variables
     integer :: tick_start, tick_end, tick_rate
     real(wp) :: elapsed_time
@@ -155,20 +156,44 @@ program main
         end if
     end do
 
+    ! EXPORT UNDEFORMED MESH FOR PYTHON VERIFICATION
+    
+    print *, "Exporting undeformed mesh data to CSV..."
+    
+    ! Export Nodal Data (Coordinates, Boundary Conditions, Loads)
+    open(newunit=csv_nodes, file=trim(out_folder)//'undeformed_nodes.csv', status='replace')
+    write(csv_nodes, '(A)') "Node_ID,X,Y,Fix_X,Fix_Y,Force_X,Force_Y"
+    do i = 1, n_node
+        write(csv_nodes, '(I0, 6(A, ES15.6))') &
+            i, ",", X(i), ",", Y(i), &
+            ",", merge(1.0_wp, 0.0_wp, is_fixed(2*i - 1)), &
+            ",", merge(1.0_wp, 0.0_wp, is_fixed(2*i)), &
+            ",", F_ref(2*i - 1), ",", F_ref(2*i)
+    end do
+    close(csv_nodes)
+
+    ! Export Element Connectivity
+    open(newunit=csv_elems, file=trim(out_folder)//'undeformed_elements.csv', status='replace')
+    write(csv_elems, '(A)') "Elem_ID,Node_i,Node_j"
+    do i = 1, n_elem
+        write(csv_elems, '(I0, A, I0, A, I0)') i, ",", conn(1,i), ",", conn(2,i)
+    end do
+    close(csv_elems)
+    
+    print *, "Pre-processing export complete. Run Python script to view."
+
     ! INITIALIZE MATERIAL & SOLVER
     ! Units: MMGS, so E = 200,000 MPa = 200,000 N/mm^2
     my_mat = LinearElasticMaterial(E = E_mod)
     
-    ! We pass the mesh data into our new solver class
-    call model%init(n_node, n_elem, X, Y, conn, A=65.0_wp, mat_in=my_mat)
+    ! ! We pass the mesh data into our new solver class
+    ! ! call model%init(n_node, n_elem, X, Y, conn, A=65.0_wp, mat_in=my_mat)
 
 
-    ! EXECUTE INCREMENTAL NEWTON-RAPHSON
+    ! ! EXECUTE INCREMENTAL NEWTON-RAPHSON
 
     call system_clock(tick_start, tick_rate)
 
-    ! Load: 90 kN = 90,000 N. Applied in 1 kN increments -> 90 steps.
-    ! Note: You will need to specify WHICH node/DOF gets the load inside solve_incremental.
     call model%solve_incremental(F_total = -90000.0_wp, & 
                                  n_steps = 90, & 
                                  max_iter = 50, &
