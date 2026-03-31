@@ -216,7 +216,7 @@ contains
             end do
             
             ! Print step convergence cleanly
-            print '(A, I0, A, I0, A, I0, A)', &
+            print '(A, I0, A, I0, A, I0, A, I0, A)', &
                 "Step ", step, "/", n_steps, &
                 " converged after ", iter, "/", max_iter, " iterations."
 

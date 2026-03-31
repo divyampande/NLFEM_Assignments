@@ -34,4 +34,4 @@ clean:
 
 # Rule to build AND run the code immediately
 run: $(TARGET)
-	python run_sim.py
+	./$(TARGET)
