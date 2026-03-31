@@ -7,7 +7,7 @@ module solver_mod
     implicit none
 
     ! The FEA Class
-    type :: NonlinearBarFEA
+    type :: CorotationalTrussFEA
         real(wp) :: L, A
         integer :: n_elem, n_node, n_gauss
         class(Material), allocatable :: mat  ! Polymorphic material object
@@ -16,12 +16,12 @@ module solver_mod
         procedure :: init => init_solver
         procedure :: assemble_system
         procedure :: solve_incremental
-    end type NonlinearBarFEA
+    end type CorotationalTrussFEA
 
 contains
 
     subroutine init_solver(self, L, A, mat_in, n_elem, n_gauss)
-        class(NonlinearBarFEA), intent(inout) :: self
+        class(CorotationalTrussFEA), intent(inout) :: self
         real(wp), intent(in) :: L, A
         class(Material), intent(in) :: mat_in
         integer, intent(in) :: n_elem, n_gauss
@@ -53,7 +53,7 @@ contains
     end subroutine init_solver
 
 subroutine assemble_system(self, u, ld, d, ud, f_int)
-        class(NonlinearBarFEA), intent(in) :: self
+        class(CorotationalTrussFEA), intent(in) :: self
         real(wp), intent(in) :: u(self%n_node)
         real(wp), intent(out) :: ld(self%n_node - 1) ! Lower diagonal
         real(wp), intent(out) :: d(self%n_node)      ! Main diagonal
@@ -115,7 +115,7 @@ subroutine assemble_system(self, u, ld, d, ud, f_int)
     end subroutine assemble_system
 
     subroutine solve_incremental(self, F_total, n_steps, max_iter, u_final, out_folder)
-        class(NonlinearBarFEA), intent(in) :: self
+        class(CorotationalTrussFEA), intent(in) :: self
         real(wp), intent(in) :: F_total
         integer, intent(in) :: n_steps
         integer, intent(in) :: max_iter

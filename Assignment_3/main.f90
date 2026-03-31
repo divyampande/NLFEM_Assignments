@@ -16,12 +16,29 @@ program main
     integer, parameter :: n_node = 2 * n_bays + 2
     integer, parameter :: ndof   = n_node * 2
     
+    ! Material and Geometric Properties
+    real(wp), parameter :: L_bay   = 40.0_wp                        ! mm
+    real(wp), parameter :: L_total = n_bays * L_bay                 ! mm
+    real(wp), parameter :: H_total = 40.0_wp                        ! mm
+    real(wp), parameter :: L_diag   = sqrt(L_bay**2 + H_total**2)   ! mm
+    real(wp), parameter :: A_cross = 65.0_wp                        ! mm^2
+    real(wp), parameter :: E_mod   = 200000.0_wp                    ! MPa (N/mm^2)
+
+    ! Boundary Conditions and Loads
+    real(wp), parameter :: P_load  = -90000.0_wp                    ! N (Downward)
+    real(wp), parameter :: load_increment = 1000.0_wp               ! N (Downward)
+    integer,  parameter :: n_steps = int(abs(P_load) / load_increment)
+    real(wp), parameter :: load_location(2) = [L_total, H_total]    ! Apply load at top-right node
+    real(wp), parameter :: fixed_X = 0.0_wp                         ! mm
+
     ! Mesh Arrays
     real(wp) :: X(n_node), Y(n_node)
     integer  :: conn(2, n_elem) 
+    logical  :: is_fixed(ndof)
+    real(wp) :: F_ref(ndof)
     real(wp) :: u_final(ndof)
-    
-    integer :: i
+
+    integer :: i, n1, n2, e
     character(len=100) :: out_folder = "Results/"
     
     ! System Clock Variables
@@ -35,27 +52,51 @@ program main
     ! Odd nodes (1, 3, 5...) on bottom chord
     ! Even nodes (2, 4, 6...) on top chord
 
-    ! >> TODO: Populate X and Y arrays here based on L=240 (bottom) and L=240 (top)
-    ! Example for first bay:
-    ! X(1) = 0.0_wp;   Y(1) = 0.0_wp     ! Bottom Wall
-    ! X(2) = 0.0_wp;   Y(2) = 40.0_wp    ! Top Wall
-    ! X(3) = 40.0_wp;  Y(3) = 0.0_wp
-    ! X(4) = 40.0_wp;  Y(4) = 40.0_wp
-    ! ...
+    do i = 1, n_bays + 1
+        X(2*i - 1) = real(i - 1, wp) * L_bay  ! Bottom chord
+        Y(2*i - 1) = 0.0_wp
+        X(2*i)     = real(i - 1, wp) * L_bay  ! Top chord
+        Y(2*i)     = H_total
+    end do
     
-
     ! DEFINE ELEMENT CONNECTIVITY
-    ! >> TODO: Populate conn(1,:) and conn(2,:) mapping elements to nodes.
-    ! Example:
-    ! conn(:, 1) = [1, 3]  ! Bottom chord, Bay 1
-    ! conn(:, 2) = [2, 4]  ! Top chord, Bay 1
-    ! conn(:, 3) = [1, 2]  ! Wall vertical
-    ! conn(:, 4) = [3, 4]  ! Vertical, Bay 1
-    ! conn(:, 5) = [1, 4]  ! Diagonal, Bay 1
-    ! ...
+    e = 0
+    do i = 1, n_bays
+        e = e + 1
+        conn(:, e) = [2*i - 1, 2*i + 1] ! Bottom chord element
+    end do
 
-    ! 3. INITIALIZE MATERIAL & SOLVER
-    ! Units: E = 200 GPa = 200,000 MPa (N/mm^2). Area = 65 mm^2
+    do i = 1, n_bays
+        e = e + 1
+        conn(:, e) = [2*i, 2*i + 2] ! Top chord element
+    end do
+
+    do i = 1, n_bays + 1
+        e = e + 1
+        conn(:, e) = [2*i - 1, 2*i] ! vertical element
+    end do
+
+    do i = 1, n_bays
+        e = e + 1
+        conn(:, e) = [2*i - 1, 2*i + 2] ! diagonal element
+    end do
+
+
+    ! BOUNDARY CONDITIONS & LOADS
+    is_fixed = .false.
+    F_ref = 0.0_wp
+
+    ! We search the mesh. If a node is at X=0, we fix both its U and V DOFs.
+    do i = 1, n_node
+        if (abs(X(i) - fixed_X) < 1.0e-6_wp) then
+            is_fixed(2*i - 1) = .true.  ! Fix X-DOF
+            is_fixed(2*i)     = .true.  ! Fix Y-DOF
+        end if
+    end do
+
+
+    ! INITIALIZE MATERIAL & SOLVER
+    ! Units: MMGS, so E = 200,000 MPa = 200,000 N/mm^2
     my_mat = LinearElasticMaterial(E = 200000.0_wp)
     
     ! We pass the mesh data into our new solver class
