@@ -54,7 +54,7 @@ contains
         real(wp), intent(out) :: K_global(self%ndof, self%ndof) ! Dense global stiffness
         real(wp), intent(out) :: F_int(self%ndof)      ! Global internal force vector
 
-        integer :: e, n1, n2
+        integer :: e, n1, n2, i, j
         integer :: dof(4)
         real(wp) :: x1, y1, x2, y2          ! Current deformed coordinates
         real(wp) :: x1_0, y1_0, x2_0, y2_0  ! Original coordinates
@@ -107,29 +107,33 @@ contains
             N_force = stress(1) * self%A
 
             ! Material Stiffness Matrix (Ke) and Geometric Stiffness Matrix (Kg)
-            Ke = (Et(1) * self%A / L0) * reshape([ &
-                c*c,   c*s,  -c*c,  -c*s, &
-                c*s,   s*s,  -c*s,  -s*s, &
-               -c*c,  -c*s,   c*c,   c*s, &
-               -c*s,  -s*s,   c*s,   s*s  &
-            ], [4,4])
+            Ke(1,:) = (Et(1) * self%A) / L0 * [ c*c,  c*s, -c*c, -c*s]
+            Ke(2,:) = (Et(1) * self%A) / L0 * [ c*s,  s*s, -c*s, -s*s]
+            Ke(3,:) = (Et(1) * self%A) / L0 * [-c*c, -c*s,  c*c,  c*s]
+            Ke(4,:) = (Et(1) * self%A) / L0 * [-c*s, -s*s,  c*s,  s*s]
 
-            Kg = (N_force / L) * reshape([ &
-                s*s,   -c*s,  -s*s,   c*s, &
-               -c*s,   c*c,   c*s,  -c*c, &
-               -s*s,   c*s,   s*s,  -c*s, &
-                c*s,  -c*c,  -c*s,   c*c  &
-            ], [4,4])
+            Kg(1,:) = (N_force / L) * [ s*s, -c*s, -s*s,  c*s]
+            Kg(2,:) = (N_force / L) * [-c*s,  c*c,  c*s, -c*c]
+            Kg(3,:) = (N_force / L) * [-s*s,  c*s,  s*s, -c*s]
+            Kg(4,:) = (N_force / L) * [ c*s, -c*c, -c*s,  c*c]
 
             ! Element Internal Force Vector (fe)
-            fe = N_force * reshape([c, s, -c, -s], [4])
+            fe = N_force * [-c, -s, c, s]
 
             ! Global Matrices
             K_elem = Ke + Kg
             
-            ! -> TODO: Scatter K_elem into K_global using the dof(:) mapping
-            ! -> TODO: Scatter fe into F_int using the dof(:) mapping
+            ! Assemble into global K and F_int
+            do i = 1, 4
+                F_int(dof(i)) = F_int(dof(i)) + fe(i)
+            end do
 
+            do j = 1, 4
+                do i = 1, 4
+                    K_global(dof(i), dof(j)) = K_global(dof(i), dof(j)) + K_elem(i, j)
+                end do
+            end do
+            
         end do
     end subroutine assemble_system
 
