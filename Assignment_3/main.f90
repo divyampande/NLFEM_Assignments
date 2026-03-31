@@ -12,7 +12,7 @@ program main
     
     ! Global Mesh Parameters
     integer, parameter :: n_bays = 6
-    integer, parameter :: n_elem = (5 * n_bays) + 1  ! 5 elements per bay: bottom, top, left, right, diagonal
+    integer, parameter :: n_elem = (4 * n_bays) + 1  ! 5 elements per bay: bottom, top, left, right, diagonal
     integer, parameter :: n_node = 2 * n_bays + 2
     integer, parameter :: ndof   = n_node * 2
     
@@ -25,11 +25,29 @@ program main
     real(wp), parameter :: E_mod   = 200000.0_wp                    ! MPa (N/mm^2)
 
     ! Boundary Conditions and Loads
-    real(wp), parameter :: P_load  = -90000.0_wp                    ! N (Downward)
-    real(wp), parameter :: load_increment = 1000.0_wp               ! N (Downward)
-    integer,  parameter :: n_steps = int(abs(P_load) / load_increment)
-    real(wp), parameter :: load_location(2) = [L_total, H_total]    ! Apply load at top-right node
-    real(wp), parameter :: fixed_X = 0.0_wp                         ! mm
+    ! Dirichlet
+    integer, parameter :: num_supports = 2
+    
+    ! Matrix format: [X_coord, Y_coord, Fix_X, Fix_Y] per column
+    ! Fix flags: 1.0 = Fixed, 0.0 = Free
+    real(wp), parameter :: support_data(4, num_supports) = reshape([ &
+        0.0_wp, 0.0_wp,  1.0_wp, 1.0_wp, &
+        0.0_wp, 40.0_wp, 1.0_wp, 1.0_wp  &
+        ! If you wanted a roller at mid-span, you could add:
+        ! 120.0_wp, 0.0_wp, 0.0_wp, 1.0_wp 
+    ], [4, num_supports])
+
+    ! Neumann
+    integer, parameter :: num_loads = 1
+    
+    ! Matrix format: [X_coord, Y_coord, Force_X, Force_Y] per column
+    real(wp), parameter :: load_data(4, num_loads) = reshape([ &
+        240.0_wp, 40.0_wp, 0.0_wp, -90000.0_wp & ! Load 1: Tip, Downward
+    ], [4, num_loads])
+
+    ! Variables for the search routines
+    logical :: node_found
+    integer :: j, i, e
 
     ! Mesh Arrays
     real(wp) :: X(n_node), Y(n_node)
@@ -38,7 +56,7 @@ program main
     real(wp) :: F_ref(ndof)
     real(wp) :: u_final(ndof)
 
-    integer :: i, n1, n2, e
+
     character(len=100) :: out_folder = "Results/"
     
     ! System Clock Variables
@@ -86,18 +104,60 @@ program main
     is_fixed = .false.
     F_ref = 0.0_wp
 
-    ! We search the mesh. If a node is at X=0, we fix both its U and V DOFs.
-    do i = 1, n_node
-        if (abs(X(i) - fixed_X) < 1.0e-6_wp) then
-            is_fixed(2*i - 1) = .true.  ! Fix X-DOF
-            is_fixed(2*i)     = .true.  ! Fix Y-DOF
+    ! We search the mesh to find fixed nodes.
+    is_fixed = .false.
+    do j = 1, num_supports
+        node_found = .false.
+        do i = 1, n_node
+            if (abs(X(i) - support_data(1,j)) < 1.0e-6_wp .and. &
+                abs(Y(i) - support_data(2,j)) < 1.0e-6_wp) then
+                
+                ! Apply constraints based on flags
+                if (support_data(3,j) == 1.0_wp) is_fixed(2*i - 1) = .true.
+                if (support_data(4,j) == 1.0_wp) is_fixed(2*i)     = .true.
+                
+                node_found = .true.
+                exit ! Node found, move to next support
+            end if
+        end do
+        
+        if (.not. node_found) then
+            print *, "FATAL ERROR: Support specified at invalid coordinate:"
+            print *, "X = ", support_data(1,j), " Y = ", support_data(2,j)
+            print *, "Truss supports must be applied exactly at nodes."
+            stop
         end if
     end do
 
+    ! We search the mesh to find loaded nodes.
+    F_ref = 0.0_wp
+    
+    do j = 1, num_loads
+        node_found = .false.
+        do i = 1, n_node
+            if (abs(X(i) - load_data(1,j)) < 1.0e-6_wp .and. &
+                abs(Y(i) - load_data(2,j)) < 1.0e-6_wp) then
+                
+                ! Add the load to the reference vector
+                F_ref(2*i - 1) = F_ref(2*i - 1) + load_data(3,j)
+                F_ref(2*i)     = F_ref(2*i)     + load_data(4,j)
+                
+                node_found = .true.
+                exit
+            end if
+        end do
+        
+        if (.not. node_found) then
+            print *, "FATAL ERROR: Load specified at invalid coordinate:"
+            print *, "X = ", load_data(1,j), " Y = ", load_data(2,j)
+            print *, "Truss loads must be applied exactly at nodes."
+            stop
+        end if
+    end do
 
     ! INITIALIZE MATERIAL & SOLVER
     ! Units: MMGS, so E = 200,000 MPa = 200,000 N/mm^2
-    my_mat = LinearElasticMaterial(E = 200000.0_wp)
+    my_mat = LinearElasticMaterial(E = E_mod)
     
     ! We pass the mesh data into our new solver class
     call model%init(n_node, n_elem, X, Y, conn, A=65.0_wp, mat_in=my_mat)
