@@ -162,9 +162,9 @@ contains
         u_final = 0.0_wp
         
         open(newunit=csv_id, file=trim(out_folder)//'history.csv', status='replace')
-        ! Tracks the Y-displacement of the loaded node (last DOF) vs total applied load
-        write(csv_id, '(A)') "Load_Factor,Tip_Disp_Y,Applied_Force_Y"
-        write(csv_id, '(3(ES15.6, A))') 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ""
+        ! Track BOTH X and Y for the loaded node
+        write(csv_id, '(A)') "Load_Factor,Tip_Disp_X,Tip_Disp_Y,Applied_Force_X,Applied_Force_Y"
+        write(csv_id, '(5(ES15.6, A))') 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ""
 
         ! Outer Loop
         do step = 1, n_steps
@@ -221,8 +221,12 @@ contains
                 " converged after ", iter, "/", max_iter, " iterations."
 
             ! Log the Y-displacement of the top-right tip
-            write(csv_id, '(ES15.6,A,ES15.6,A,ES15.6)') &
-                load_factor, ",", u_final(self%ndof), ",", F_ext(self%ndof)
+            write(csv_id, '(ES15.6,A,ES15.6,A,ES15.6,A,ES15.6,A,ES15.6)') &
+                load_factor, ",", &
+                u_final(self%ndof - 1), ",", &  ! Tip Disp X
+                u_final(self%ndof), ",", &      ! Tip Disp Y
+                F_ext(self%ndof - 1), ",", &    ! Tip Force X
+                F_ext(self%ndof)                ! Tip Force Y
 
         end do
         
