@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Mark images as binary to disable diffs and merges
+*.jpg binary
+*.png binary

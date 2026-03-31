@@ -1,0 +1,29 @@
+# ==========================================
+# Fortran FEA Solver - .gitignore
+# ==========================================
+
+# 1. Compiled Executables
+*.exe
+fea_solver.exe
+
+# 2. Fortran Build Artifacts
+*.o
+*.mod
+
+# 3. Python Cache & Environments
+__pycache__/
+*.pyc
+.env/
+venv/
+.fortran_plotter/
+
+# 4. Output Data & Logs
+*.csv
+history.csv
+out/
+output/
+
+# 5. OS & Editor Configurations
+.vscode/
+.DS_Store
+Thumbs.db
