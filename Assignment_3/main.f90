@@ -45,7 +45,7 @@ program main
         240.0_wp, 40.0_wp, 0.0_wp, -90000.0_wp & ! Load 1: Tip, Downward
         ! 240.0_wp, 0.0_wp, 90000.0_wp, 0.0_wp & ! Load 2: Tip, Rightward
     ], [4, num_loads])
-    real(wp), parameter :: n_steps = 90
+    integer, parameter :: n_steps = 90
 
 
     ! Variables for the search routines
@@ -212,6 +212,26 @@ program main
     
     call system_clock(tick_end)
     elapsed_time = real(tick_end - tick_start, wp) / real(tick_rate, wp)
+
+    ! Export Deformed Mesh for Visualization
+    print *, "Exporting final deformed shape..."
+    open(newunit=csv_nodes, file=trim(out_folder)//'deformed_nodes.csv', status='replace')
+    
+    ! We export the Original X, Y and the Displacements U, V
+    write(csv_nodes, '(A)') "Node_ID,X_orig,Y_orig,U,V,X_def,Y_def"
+    
+    do i = 1, n_node
+        ! Extract U and V for this node from the u_final vector
+        write(csv_nodes, '(I0, 6(A, ES15.6))') &
+            i, &
+            ",", X(i), &
+            ",", Y(i), &
+            ",", u_final(2*i - 1), &  ! U displacement
+            ",", u_final(2*i), &      ! V displacement
+            ",", X(i) + u_final(2*i - 1), & ! Final Deformed X
+            ",", Y(i) + u_final(2*i)        ! Final Deformed Y
+    end do
+    close(csv_nodes)
     
     print *, "=========================================="
     print '(A, F0.4, A)', " >>> Fortran Core Solver Time: ", elapsed_time, " seconds <<<"

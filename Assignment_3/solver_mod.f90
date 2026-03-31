@@ -155,7 +155,7 @@ contains
         integer :: info
 
         ! Control & Output Variables
-        integer  :: step, iter, i, j, csv_id
+        integer  :: step, iter, i, csv_id
         real(wp) :: load_factor, norm_du
         
         ! INITIALIZATION
@@ -190,7 +190,18 @@ contains
                     end if
                 end do
                 
-                ! TODO: Solve for du using LAPACK dgesv (K_global * du = R)
+                ! [K_global] {du} = {R}
+                call dgesv(self%ndof, 1, K_global, self%ndof, ipiv, R, self%ndof, info)
+                
+                ! Error Handling for LAPACK
+                if (info /= 0) then
+                    print *, "FATAL ERROR: LAPACK dgesv failed with info = ", info
+                    if (info > 0) then
+                        print *, "The stiffness matrix is singular at step ", step
+                        print *, "This means your structure is a mechanism. Check boundary conditions!"
+                    end if
+                    stop
+                end if
                 
                 ! Update Displacements
                 du = R
