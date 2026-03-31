@@ -133,81 +133,88 @@ contains
                     K_global(dof(i), dof(j)) = K_global(dof(i), dof(j)) + K_elem(i, j)
                 end do
             end do
-            
+
         end do
     end subroutine assemble_system
 
-    subroutine solve_incremental(self, F_total, n_steps, max_iter, u_final, out_folder)
+    subroutine solve_incremental(self, F_ref, is_fixed, n_steps, max_iter, u_final, out_folder)
         class(CorotationalTrussFEA), intent(in) :: self
-        real(wp), intent(in) :: F_total
-        integer, intent(in) :: n_steps
-        integer, intent(in) :: max_iter
-        real(wp), intent(out) :: u_final(self%n_node)
+        real(wp), intent(in)  :: F_ref(self%ndof)       ! Reference load vector (100% load)
+        logical, intent(in)   :: is_fixed(self%ndof)    ! Boundary condition flags
+        integer, intent(in)   :: n_steps, max_iter
+        real(wp), intent(out) :: u_final(self%ndof)
         character(len=*), intent(in) :: out_folder
 
-        ! LAPACK variables
-        integer :: info
+        ! Linear Algebra Arrays
+        real(wp) :: K_global(self%ndof, self%ndof)
+        real(wp) :: F_int(self%ndof), F_ext(self%ndof), R(self%ndof)
+        real(wp) :: du(self%ndof)
         
-        ! Tridiagonal arrays (Lower, Main, Upper)
-        real(wp) :: ld(self%n_node - 1)
-        real(wp) :: d(self%n_node)
-        real(wp) :: ud(self%n_node - 1)
+        ! LAPACK dgesv Variables
+        integer :: ipiv(self%ndof)
+        integer :: info
 
-        integer :: step, iter, csv_id
-        real(wp) :: F_ext(self%n_node), f_int(self%n_node)
-        real(wp) :: R(self%n_node)
-        real(wp) :: du(self%n_node), force_inc, norm_du
-        real(wp) :: strain_last(1), stress_last(1), Et_last(1), le
-
+        ! Control & Output Variables
+        integer  :: step, iter, i, j, csv_id
+        real(wp) :: load_factor, norm_du
+        
+        ! INITIALIZATION
         u_final = 0.0_wp
-        force_inc = F_total / real(n_steps, wp)
-
-        ! Open CSV for history
+        
         open(newunit=csv_id, file=trim(out_folder)//'history.csv', status='replace')
-        write(csv_id, '(A)') "Force,Tip_Disp,Last_Strain,Last_Stress"
-        write(csv_id, '(ES15.6,A,ES15.6,A,ES15.6,A,ES15.6)') 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ",", 0.0_wp
+        ! Tracks the Y-displacement of the loaded node (last DOF) vs total applied load
+        write(csv_id, '(A)') "Load_Factor,Tip_Disp_Y,Applied_Force_Y"
+        write(csv_id, '(3(ES15.6, A))') 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ""
 
-        le = self%L / real(self%n_elem, wp)
-
+        ! Outer Loop
         do step = 1, n_steps
-            F_ext = 0.0_wp
-            F_ext(self%n_node) = force_inc * step
+            load_factor = real(step, wp) / real(n_steps, wp)
+            F_ext = F_ref * load_factor
 
+            ! NEWTON-RAPHSON ITERATION (Inner Loop)
             do iter = 1, max_iter
-
-                call self%assemble_system(u_final, ld, d, ud, f_int)
-                R = F_ext - f_int
                 
-                d(1) = 1.0_wp
-                ud(1) = 0.0_wp
-                ld(1) = 0.0_wp   
-                R(1) = 0.0_wp
-
-                call dgtsv(self%n_node, 1, ld, d, ud, R, self%n_node, info)
+                ! Current tangent stiffness and internal force
+                call self%assemble_system(u_final, K_global, F_int)
                 
-                if (info /= 0) then
-                    print *, "LAPACK Error: Matrix is singular! INFO = ", info
-                    stop
-                end if
-
-                ! R is overwritten with the displacement increment
-                du = R  
+                ! Residual
+                R = F_ext - F_int
+                
+                ! Dirichlet Boundary Conditions
+                do i = 1, self%ndof
+                    if (is_fixed(i)) then
+                        K_global(i, :) = 0.0_wp
+                        K_global(:, i) = 0.0_wp
+                        K_global(i, i) = 1.0_wp
+                        R(i) = 0.0_wp
+                    end if
+                end do
+                
+                ! TODO: Solve for du using LAPACK dgesv (K_global * du = R)
+                
+                ! Update Displacements
+                du = R
                 u_final = u_final + du
-
-                ! Convergence Check (L2 Norm of the full du vector)
+                
+                ! Convergence Check
                 norm_du = sqrt(sum(du**2))
-                if (norm_du < 1.0e-8_wp) exit
+                if (norm_du < 1e-8_wp) then
+                    exit  ! Converged
+                end if
+                
             end do
-            print '(A, I0, A, I0, A, I0, A, I0, A)', &
-                    "Step ", step, "/", n_steps, &
-                    " converged after ", iter, "/", max_iter, " iterations."
-            strain_last(1) = (u_final(self%n_node) - u_final(self%n_node-1)) / le
-            call self%mat%get_stress_and_tangent(strain_last, stress_last, Et_last, 1)
             
-            ! Write history data
-            write(csv_id, '(ES15.6,A,ES15.6,A,ES15.6,A,ES15.6)') & 
-                F_ext(self%n_node), ",", u_final(self%n_node), ",", strain_last(1), ",", stress_last(1)
+            ! Print step convergence cleanly
+            print '(A, I0, A, I0, A, I0, A)', &
+                "Step ", step, "/", n_steps, &
+                " converged after ", iter, "/", max_iter, " iterations."
+
+            ! Log the Y-displacement of the top-right tip
+            write(csv_id, '(ES15.6,A,ES15.6,A,ES15.6)') &
+                load_factor, ",", u_final(self%ndof), ",", F_ext(self%ndof)
+
         end do
+        
         close(csv_id)
     end subroutine solve_incremental
 
