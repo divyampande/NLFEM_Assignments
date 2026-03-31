@@ -26,7 +26,7 @@ program main
 
     ! Boundary Conditions and Loads
     ! Dirichlet
-    integer, parameter :: num_supports = 2
+    integer, parameter :: num_supports = 2  ! Increase to add more supports (e.g. roller at mid-span)
     
     ! Matrix format: [X_coord, Y_coord, Fix_X, Fix_Y] per column
     ! Fix flags: 1.0 = Fixed, 0.0 = Free
@@ -38,11 +38,12 @@ program main
     ], [4, num_supports])
 
     ! Neumann
-    integer, parameter :: num_loads = 1
+    integer, parameter :: num_loads = 1  ! Increase to add more loads (e.g. point load at mid-span)
     
     ! Matrix format: [X_coord, Y_coord, Force_X, Force_Y] per column
     real(wp), parameter :: load_data(4, num_loads) = reshape([ &
         240.0_wp, 40.0_wp, 0.0_wp, -90000.0_wp & ! Load 1: Tip, Downward
+        ! 240.0_wp, 0.0_wp, 90000.0_wp, 0.0_wp & ! Load 2: Tip, Rightward
     ], [4, num_loads])
 
     ! Variables for the search routines
