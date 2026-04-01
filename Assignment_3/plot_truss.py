@@ -2,17 +2,25 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
 
 print("--- Truss Visualizer ---")
 
-out_folder = "outputs/"
-nodes_file = os.path.join(out_folder, "undeformed_nodes.csv")
-elems_file = os.path.join(out_folder, "undeformed_elements.csv")
+# Allow passing the job name via terminal, e.g., "python plot_truss.py job1"
+if len(sys.argv) > 1:
+    job_name = sys.argv[1]
+    # Strip extension if accidentally provided
+    if job_name.endswith(".inp"):
+        job_name = job_name[:-4]
+else:
+    job_name = "job1"  # Default fallback
 
-# PRE-PROCESSING: UNDEFORMED MESH (ALWAYS RUNS)
-if not os.path.exists(nodes_file) or not os.path.exists(elems_file):
-    print(f"FATAL ERROR: Could not find base mesh files in {out_folder}")
-    exit()
+outfolder = "outputs"
+prefix = os.path.join(outfolder, job_name + "_")
+nodes_file = f"{prefix}undeformed_nodes.csv"
+elems_file = f"{prefix}undeformed_elements.csv"
+def_nodes_file = f"{prefix}deformed_nodes.csv"
+history_file = f"{prefix}history.csv"
 
 nodes = pd.read_csv(nodes_file, index_col="Node_ID")
 elems = pd.read_csv(elems_file)
@@ -98,19 +106,10 @@ plt.xlim(nodes["X"].min() - 20, nodes["X"].max() + 20)
 plt.ylim(nodes["Y"].min() - 35, nodes["Y"].max() + 35)
 
 plt.tight_layout()
-plt.savefig(os.path.join(out_folder, "1_undeformed_truss.png"), dpi=300)
+plt.savefig(f"{prefix}1_undeformed_truss.png", dpi=300)
 print("Saved: 1_undeformed_truss.png")
 
 # POST-PROCESSING: SOLVER RESULTS
-def_nodes_file = os.path.join(out_folder, "deformed_nodes.csv")
-history_file = os.path.join(out_folder, "history.csv")
-
-if not os.path.exists(def_nodes_file) or not os.path.exists(history_file):
-    print(
-        "Notice: Solver results not found. Stopping after pre-processing plot. (Did the solver crash?)"
-    )
-    exit()
-
 def_nodes = pd.read_csv(def_nodes_file, index_col="Node_ID")
 history = pd.read_csv(history_file)
 
@@ -171,7 +170,7 @@ ax2.set_xlabel("X Coordinate (mm)")
 ax2.set_ylabel("Y Coordinate (mm)")
 ax2.grid(True, linestyle="--", alpha=0.5)
 plt.tight_layout()
-plt.savefig(os.path.join(out_folder, "2_mesh_overlay.png"), dpi=300)
+plt.savefig(f"{prefix}2_mesh_overlay.png", dpi=300)
 print("Saved: 2_mesh_overlay.png")
 
 # Plot 3: Load-Displacement
@@ -213,7 +212,7 @@ ax3.set_ylabel(load_label)
 ax3.grid(True, linestyle="--", alpha=0.5)
 # ax3.legend(loc="best", fontsize=11)
 plt.tight_layout()
-plt.savefig(os.path.join(out_folder, "3_load_horizontal_displacement.png"), dpi=300)
+plt.savefig(f"{prefix}3_load_horizontal_displacement.png", dpi=300)
 print("Saved: 3_load_horizontal_displacement.png")
 
 fig4, ax4 = plt.subplots(figsize=(8, 6))
@@ -238,7 +237,7 @@ ax4.grid(True, linestyle="--", alpha=0.5)
 # ax4.legend(loc="best", fontsize=11)
 
 plt.tight_layout()
-plt.savefig(os.path.join(out_folder, "4_load_vertical_displacement.png"), dpi=300)
+plt.savefig(f"{prefix}4_load_vertical_displacement.png", dpi=300)
 print("Saved: 4_load_vertical_displacement.png")
 
 fig5, ax5 = plt.subplots(figsize=(8, 6))
@@ -261,7 +260,7 @@ ax5.grid(True, linestyle="--", alpha=0.5)
 # ax5.legend(loc="best", fontsize=11)
 
 plt.tight_layout()
-plt.savefig(os.path.join(out_folder, "5_load_total_displacement.png"), dpi=300)
+plt.savefig(f"{prefix}5_load_total_displacement.png", dpi=300)
 print("Saved: 5_load_total_displacement.png")
 
 print("All plotting complete!")

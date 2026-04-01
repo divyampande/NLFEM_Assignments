@@ -19,7 +19,6 @@ venv/
 
 # 4. Output Data & Logs
 *.csv
-history.csv
 inputs/
 
 # 5. OS & Editor Configurations

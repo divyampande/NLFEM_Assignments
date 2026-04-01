@@ -137,13 +137,13 @@ contains
         end do
     end subroutine assemble_system
 
-    subroutine solve_incremental(self, F_ref, is_fixed, n_steps, max_iter, u_final, out_folder)
+    subroutine solve_incremental(self, F_ref, is_fixed, n_steps, max_iter, u_final, prefix)
         class(CorotationalTrussFEA), intent(in) :: self
         real(wp), intent(in)  :: F_ref(self%ndof)       ! Reference load vector (100% load)
         logical, intent(in)   :: is_fixed(self%ndof)    ! Boundary condition flags
         integer, intent(in)   :: n_steps, max_iter
         real(wp), intent(out) :: u_final(self%ndof)
-        character(len=*), intent(in) :: out_folder
+        character(len=*), intent(in) :: prefix
 
         ! Linear Algebra Arrays
         real(wp) :: K_global(self%ndof, self%ndof)
@@ -161,7 +161,7 @@ contains
         ! INITIALIZATION
         u_final = 0.0_wp
         
-        open(newunit=csv_id, file=trim(out_folder)//'history.csv', status='replace')
+        open(newunit=csv_id, file=trim(prefix)//'history.csv', status='replace')
         ! Track BOTH X and Y for the loaded node
         write(csv_id, '(A)') "Load_Factor,Tip_Disp_X,Tip_Disp_Y,Applied_Force_X,Applied_Force_Y"
         write(csv_id, '(5(ES15.6, A))') 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ",", 0.0_wp, ""

@@ -9,63 +9,109 @@ program main
 
     type(LinearElasticMaterial) :: my_mat
     type(CorotationalTrussFEA)  :: model
-    
-    ! Global Mesh Parameters
-    integer, parameter :: n_bays = 6
-    integer, parameter :: n_elem = (4 * n_bays) + 1  ! 5 elements per bay: bottom, top, left, right, diagonal
-    integer, parameter :: n_node = 2 * n_bays + 2
-    integer, parameter :: ndof   = n_node * 2
-    
-    ! Material and Geometric Properties
-    real(wp), parameter :: L_total = 240.0_wp                       ! mm
-    real(wp), parameter :: L_bay   = L_total / real(n_bays, wp)     ! mm
-    real(wp), parameter :: H_total = 40.0_wp                        ! mm
-    real(wp), parameter :: L_diag   = sqrt(L_bay**2 + H_total**2)   ! mm
-    real(wp), parameter :: A_cross = 65.0_wp                        ! mm^2
-    real(wp), parameter :: E_mod   = 200000.0_wp                    ! MPa (N/mm^2)
 
-    ! Boundary Conditions and Loads
-    ! Dirichlet
-    integer, parameter :: num_supports = 2  ! Increase to add more supports (e.g. roller at mid-span)
+    ! DYNAMIC VARIABLES
+    integer :: n_bays, n_elem, n_node, ndof
+    real(wp) :: L_total, L_bay, H_total, L_diag, A_cross, E_mod
+    integer :: num_supports, num_loads, n_steps
     
-    ! Matrix format: [X_coord, Y_coord, Fix_X, Fix_Y] per column
-    ! Fix flags: 1.0 = Fixed, 0.0 = Free
-    real(wp), parameter :: support_data(4, num_supports) = reshape([ &
-        0.0_wp, 0.0_wp,  1.0_wp, 1.0_wp, &
-        0.0_wp, 40.0_wp, 1.0_wp, 1.0_wp  &
-        ! If you wanted a roller at mid-span, you could add:
-        ! 120.0_wp, 0.0_wp, 0.0_wp, 1.0_wp 
-    ], [4, num_supports])
-
-    ! Neumann
-    integer, parameter :: num_loads = 1  ! Increase to add more loads (e.g. point load at mid-span)
+    ! Dynamically allocated arrays
+    real(wp), allocatable :: support_data(:,:)
+    real(wp), allocatable :: load_data(:,:)
     
-    ! Matrix format: [X_coord, Y_coord, Force_X, Force_Y] per column
-    real(wp), parameter :: load_data(4, num_loads) = reshape([ &
-        240.0_wp, 40.0_wp, 0.0_wp, -90000.0_wp & ! Load 1: Tip, Downward
-        ! 240.0_wp, 0.0_wp, 90000.0_wp, 0.0_wp & ! Load 2: Tip, Rightward
-    ], [4, num_loads])
-    integer, parameter :: n_steps = 90
-
+    ! File IO variables
+    integer :: in_unit, dot_idx, i, slash_idx
+    character(len=256) :: input_file, base_name, prefix
 
     ! Variables for the search routines
     logical :: node_found
-    integer :: j, i, e
+    integer :: j, e
 
-    ! Mesh Arrays
-    real(wp) :: X(n_node), Y(n_node)
-    integer  :: conn(2, n_elem) 
-    logical  :: is_fixed(ndof)
-    real(wp) :: F_ref(ndof)
-    real(wp) :: u_final(ndof)
+    ! Mesh and Global Arrays
+    real(wp), allocatable :: X(:), Y(:)
+    integer, allocatable  :: conn(:,:)
+    
+    ! Solver Arrays
+    real(wp), allocatable :: F_ref(:)
+    logical, allocatable  :: is_fixed(:)
+    real(wp), allocatable :: u_final(:)
 
     ! Output Variables
-    character(len=100) :: out_folder = "outputs/"
     integer :: csv_nodes, csv_elems
 
     ! System Clock Variables
     integer :: tick_start, tick_end, tick_rate
     real(wp) :: elapsed_time
+
+    ! READ INPUT FILE
+    ! Read filename from the terminal (e.g., ./fea_solver job1.inp)
+    if (command_argument_count() >= 1) then
+        call get_command_argument(1, input_file)
+    else
+        print *, "No input file specified. Defaulting to 'job1.inp'"
+        input_file = "job1.inp"
+    end if
+
+    ! Find the last slash to strip any folder paths (e.g., "inputs/prob1.in" to "prob1.in")
+    slash_idx = index(trim(input_file), '/', back=.true.)
+    if (slash_idx > 0) then
+        base_name = input_file(slash_idx+1 : len_trim(input_file))
+    else
+        base_name = trim(input_file)
+    end if
+
+    ! Extract base name for outputs (turns "job1.inp" into "job1")
+    dot_idx = index(trim(base_name), '.', back=.true.)
+    if (dot_idx > 0) then
+        base_name = base_name(1 : dot_idx-1)
+    end if
+    
+    prefix = "outputs/" // trim(base_name) // "_"
+
+    ! Open and parse the text file
+    print *, "Reading input file: ", trim(input_file)
+    open(newunit=in_unit, file=trim(input_file), status='old')
+    
+    read(in_unit, *) n_bays
+    read(in_unit, *) L_total
+    read(in_unit, *) H_total
+    read(in_unit, *) A_cross
+    read(in_unit, *) E_mod
+    read(in_unit, *) n_steps
+    
+    read(in_unit, *) num_supports
+    allocate(support_data(4, num_supports))
+    do i = 1, num_supports
+        read(in_unit, *) support_data(1:4, i)
+    end do
+    
+    read(in_unit, *) num_loads
+    allocate(load_data(4, num_loads))
+    do i = 1, num_loads
+        read(in_unit, *) load_data(1:4, i)
+    end do
+    
+    close(in_unit)
+
+    ! CALCULATE DERIVED PARAMETERS
+    n_elem = (4 * n_bays) + 1
+    n_node = 2 * n_bays + 2
+    ndof   = n_node * 2
+    L_bay  = L_total / real(n_bays, wp)
+    L_diag = sqrt(L_bay**2 + H_total**2)
+
+    allocate(X(n_node))
+    allocate(Y(n_node))
+    allocate(conn(2, n_elem))
+    allocate(F_ref(ndof))
+    allocate(is_fixed(ndof))
+    allocate(u_final(ndof))
+
+    ! Initialize them to zero
+    X = 0.0_wp; Y = 0.0_wp; conn = 0
+    F_ref = 0.0_wp; is_fixed = .false.; u_final = 0.0_wp
+    
+    print *, "Initialization successful. N_DOFs: ", ndof
 
     print *, "Starting 2D Co-rotational Truss Solver..."
 
@@ -105,11 +151,7 @@ program main
 
 
     ! BOUNDARY CONDITIONS & LOADS
-    is_fixed = .false.
-    F_ref = 0.0_wp
-
     ! We search the mesh to find fixed nodes.
-    is_fixed = .false.
     do j = 1, num_supports
         node_found = .false.
         do i = 1, n_node
@@ -134,8 +176,6 @@ program main
     end do
 
     ! We search the mesh to find loaded nodes.
-    F_ref = 0.0_wp
-    
     do j = 1, num_loads
         node_found = .false.
         do i = 1, n_node
@@ -164,7 +204,7 @@ program main
     print *, "Exporting undeformed mesh data to CSV..."
     
     ! Export Nodal Data (Coordinates, Boundary Conditions, Loads)
-    open(newunit=csv_nodes, file=trim(out_folder)//'undeformed_nodes.csv', status='replace')
+    open(newunit=csv_nodes, file=trim(prefix)//'undeformed_nodes.csv', status='replace')
     write(csv_nodes, '(A)') "Node_ID,X,Y,Fix_X,Fix_Y,Force_X,Force_Y"
     do i = 1, n_node
         write(csv_nodes, '(I0, 6(A, ES15.6))') &
@@ -176,7 +216,7 @@ program main
     close(csv_nodes)
 
     ! Export Element Connectivity
-    open(newunit=csv_elems, file=trim(out_folder)//'undeformed_elements.csv', status='replace')
+    open(newunit=csv_elems, file=trim(prefix)//'undeformed_elements.csv', status='replace')
     write(csv_elems, '(A)') "Elem_ID,Node_i,Node_j"
     do i = 1, n_elem
         write(csv_elems, '(I0, A, I0, A, I0)') i, ",", conn(1,i), ",", conn(2,i)
@@ -207,7 +247,7 @@ program main
                                  n_steps = n_steps, & 
                                  max_iter = 50, &        
                                  u_final = u_final, &
-                                 out_folder = trim(out_folder))
+                                 prefix = trim(prefix))
 
     
     call system_clock(tick_end)
@@ -215,7 +255,7 @@ program main
 
     ! Export Deformed Mesh for Visualization
     print *, "Exporting final deformed shape..."
-    open(newunit=csv_nodes, file=trim(out_folder)//'deformed_nodes.csv', status='replace')
+    open(newunit=csv_nodes, file=trim(prefix)//'deformed_nodes.csv', status='replace')
     
     ! We export the Original X, Y and the Displacements U, V
     write(csv_nodes, '(A)') "Node_ID,X_orig,Y_orig,U,V,X_def,Y_def"
@@ -236,6 +276,6 @@ program main
     print *, "=========================================="
     print '(A, F0.4, A)', " >>> Fortran Core Solver Time: ", elapsed_time, " seconds <<<"
     print *, "=========================================="
-    print *, "Simulation Complete! Data exported to: ", trim(out_folder)
+    print *, "Simulation Complete! Data exported to: ", trim(prefix)
 
 end program main
