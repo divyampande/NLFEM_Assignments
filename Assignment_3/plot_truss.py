@@ -177,32 +177,91 @@ print("Saved: 2_mesh_overlay.png")
 # Plot 3: Load-Displacement
 fig3, ax3 = plt.subplots(figsize=(8, 6))
 
-# Determine the primary direction of the applied load
+
+# Determine the primary applied load for the Y-axis
 max_fx = history["Applied_Force_X"].abs().max()
 max_fy = history["Applied_Force_Y"].abs().max()
 
 if max_fx > max_fy:
-    # Load is primarily horizontal
-    disp = history["Tip_Disp_X"].abs()
     force = history["Applied_Force_X"].abs() / 1000.0
-    x_label = "Tip Horizontal Displacement (mm)"
+    load_label = "Applied Horizontal Load (kN)"
 else:
-    # Load is primarily vertical
-    disp = history["Tip_Disp_Y"].abs()
     force = history["Applied_Force_Y"].abs() / 1000.0
-    x_label = "Tip Vertical Displacement (mm)"
+    load_label = "Applied Vertical Load (kN)"
+
+# Extract absolute displacements
+disp_x = history["Tip_Disp_X"].abs()
+disp_y = history["Tip_Disp_Y"].abs()
 
 ax3.plot(
-    disp, force, color="blue", marker="o", linestyle="-", linewidth=2, markersize=4
+    disp_x,
+    force,
+    color="blue",
+    marker="o",
+    linestyle="-",
+    linewidth=2,
+    markersize=4,
+    label="Horizontal Disp. (X)",
 )
 
-ax3.set_title("Load vs. Reaction Displacement", fontsize=14, fontweight="bold", pad=15)
-ax3.set_xlabel(x_label)
-ax3.set_ylabel("Applied Load (kN)")
+
+ax3.set_title(
+    "Load vs. Tip Horizontal Displacement", fontsize=14, fontweight="bold", pad=15
+)
+ax3.set_xlabel("Tip Displacement Magnitude (mm)")
+ax3.set_ylabel(load_label)
 ax3.grid(True, linestyle="--", alpha=0.5)
+# ax3.legend(loc="best", fontsize=11)
+plt.tight_layout()
+plt.savefig(os.path.join(out_folder, "3_load_horizontal_displacement.png"), dpi=300)
+print("Saved: 3_load_horizontal_displacement.png")
+
+fig4, ax4 = plt.subplots(figsize=(8, 6))
+
+ax4.plot(
+    disp_y,
+    force,
+    color="red",
+    marker="s",
+    linestyle="--",
+    linewidth=2,
+    markersize=4,
+    label="Vertical Disp. (Y)",
+)
+
+ax4.set_title(
+    "Load vs. Tip Vertical Displacement", fontsize=14, fontweight="bold", pad=15
+)
+ax4.set_xlabel("Tip Displacement Magnitude (mm)")
+ax4.set_ylabel(load_label)
+ax4.grid(True, linestyle="--", alpha=0.5)
+# ax4.legend(loc="best", fontsize=11)
 
 plt.tight_layout()
-plt.savefig(os.path.join(out_folder, "3_load_displacement.png"), dpi=300)
-print("Saved: 3_load_displacement.png")
+plt.savefig(os.path.join(out_folder, "4_load_vertical_displacement.png"), dpi=300)
+print("Saved: 4_load_vertical_displacement.png")
+
+# fig5, ax5 = plt.subplots(figsize=(8, 6))
+
+# ax5.plot(
+#     np.sqrt(disp_x**2 + disp_y**2),
+#     force,
+#     color="red",
+#     marker="s",
+#     linestyle="--",
+#     linewidth=2,
+#     markersize=4,
+#     label="Total Disp.",
+# )
+
+# ax5.set_title("Load vs. Tip Total Displacement", fontsize=14, fontweight="bold", pad=15)
+# ax5.set_xlabel("Tip Displacement Magnitude (mm)")
+# ax5.set_ylabel(load_label)
+# ax5.grid(True, linestyle="--", alpha=0.5)
+# # ax5.legend(loc="best", fontsize=11)
+
+# plt.tight_layout()
+# plt.savefig(os.path.join(out_folder, "5_load_total_displacement.png"), dpi=300)
+# print("Saved: 5_load_total_displacement.png")
 
 print("All plotting complete!")
