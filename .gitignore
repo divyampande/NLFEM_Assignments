@@ -19,9 +19,7 @@ venv/
 
 # 4. Output Data & Logs
 *.csv
-history.csv
-out/
-output/
+inputs/
 
 # 5. OS & Editor Configurations
 .vscode/
