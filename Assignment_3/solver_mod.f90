@@ -214,12 +214,25 @@ contains
                 end if
                 
             end do
-            
+
             ! Print step convergence cleanly
             print '(A, I0, A, I0, A, I0, A, I0, A)', &
                 "Step ", step, "/", n_steps, &
                 " converged after ", iter, "/", max_iter, " iterations."
 
+            ! CALCULATE REACTION FORCES (At end of step)
+            if (step == n_steps) then
+                print *, ""
+                print *, "--- FINAL REACTION FORCES (100% LOAD) ---"
+                do i = 1, self%ndof
+                    if (is_fixed(i)) then
+                        print '(A, I0, A, ES15.6, A)', &
+                            "  DOF ", i, " Reaction = ", (F_int(i) - F_ext(i)) / 1000.0_wp, " kN"
+                    end if
+                end do
+                print *, "-----------------------------------------"
+            end if
+            
             ! Log the Y-displacement of the top-right tip
             write(csv_id, '(ES15.6,A,ES15.6,A,ES15.6,A,ES15.6,A,ES15.6)') &
                 load_factor, ",", &
