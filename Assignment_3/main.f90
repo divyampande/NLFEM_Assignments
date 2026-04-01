@@ -17,8 +17,8 @@ program main
     integer, parameter :: ndof   = n_node * 2
     
     ! Material and Geometric Properties
-    real(wp), parameter :: L_bay   = 40.0_wp                        ! mm
-    real(wp), parameter :: L_total = n_bays * L_bay                 ! mm
+    real(wp), parameter :: L_total = 240.0_wp                       ! mm
+    real(wp), parameter :: L_bay   = L_total / real(n_bays, wp)     ! mm
     real(wp), parameter :: H_total = 40.0_wp                        ! mm
     real(wp), parameter :: L_diag   = sqrt(L_bay**2 + H_total**2)   ! mm
     real(wp), parameter :: A_cross = 65.0_wp                        ! mm^2

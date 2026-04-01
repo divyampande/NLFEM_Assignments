@@ -241,27 +241,27 @@ plt.tight_layout()
 plt.savefig(os.path.join(out_folder, "4_load_vertical_displacement.png"), dpi=300)
 print("Saved: 4_load_vertical_displacement.png")
 
-# fig5, ax5 = plt.subplots(figsize=(8, 6))
+fig5, ax5 = plt.subplots(figsize=(8, 6))
 
-# ax5.plot(
-#     np.sqrt(disp_x**2 + disp_y**2),
-#     force,
-#     color="red",
-#     marker="s",
-#     linestyle="--",
-#     linewidth=2,
-#     markersize=4,
-#     label="Total Disp.",
-# )
+ax5.plot(
+    np.sqrt(disp_x**2 + disp_y**2),
+    force,
+    color="red",
+    marker="s",
+    linestyle="--",
+    linewidth=2,
+    markersize=4,
+    label="Total Disp.",
+)
 
-# ax5.set_title("Load vs. Tip Total Displacement", fontsize=14, fontweight="bold", pad=15)
-# ax5.set_xlabel("Tip Displacement Magnitude (mm)")
-# ax5.set_ylabel(load_label)
-# ax5.grid(True, linestyle="--", alpha=0.5)
-# # ax5.legend(loc="best", fontsize=11)
+ax5.set_title("Load vs. Tip Total Displacement", fontsize=14, fontweight="bold", pad=15)
+ax5.set_xlabel("Tip Displacement Magnitude (mm)")
+ax5.set_ylabel(load_label)
+ax5.grid(True, linestyle="--", alpha=0.5)
+# ax5.legend(loc="best", fontsize=11)
 
-# plt.tight_layout()
-# plt.savefig(os.path.join(out_folder, "5_load_total_displacement.png"), dpi=300)
-# print("Saved: 5_load_total_displacement.png")
+plt.tight_layout()
+plt.savefig(os.path.join(out_folder, "5_load_total_displacement.png"), dpi=300)
+print("Saved: 5_load_total_displacement.png")
 
 print("All plotting complete!")
